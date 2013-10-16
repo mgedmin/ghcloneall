@@ -4,6 +4,12 @@ import json
 import os
 import subprocess
 import urllib.request
+from operator import itemgetter
+
+
+__author__ = 'Marius Gedminas <marius@gedmin.as>'
+__licence__ = 'MIT'
+__url__ = 'https://gist.github.com/mgedmin/5108504'
 
 
 class Error(Exception):
@@ -29,6 +35,9 @@ def get_json_and_headers(url):
 def get_github_list(url, batch_size=100):
     """Perform (a series of) HTTP GETs for a URL, return deserialized JSON.
 
+    Format of the JSON is documented at
+    http://developer.github.com/v3/repos/#list-organization-repositories
+
     Supports batching (which Github indicates by the presence of a Link header,
     e.g. ::
 
@@ -53,13 +62,15 @@ EXCEPTIONS = set()
 
 
 def main():
-    for repo in get_github_list(ZOPE_GITHUB_LIST):
+    for repo in sorted(get_github_list(ZOPE_GITHUB_LIST),
+                       key=itemgetter('full_name')):
         print("+ {full_name}".format(**repo))
         dir = repo['name']
         if os.path.exists(dir):
             subprocess.call(['git', 'pull', '-q', '--ff-only'], cwd=dir)
         else:
-            subprocess.call(['git', 'clone', '-q', repo['git_url']])
+            # use repo['git_url'] for anonymous checkouts
+            subprocess.call(['git', 'clone', '-q', repo['ssh_url']])
 
 
 if __name__ == '__main__':
