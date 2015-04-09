@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import urllib.request
+import sys
 from operator import itemgetter
 
 
@@ -61,16 +62,56 @@ ZOPE_GITHUB_LIST = 'https://api.github.com/orgs/ZopeFoundation/repos'
 EXCEPTIONS = set()
 
 
+class Progress(object):
+    stream = sys.stdout
+    last_message = ''
+    format = '[{bar}] {cur}/{total}'
+    bar_width = 20
+
+    def write(self, message):
+        if self.last_message:
+            self.clear()
+        self.stream.write('\r')
+        self.stream.write(message)
+        self.stream.write('\r')
+        self.stream.flush()
+        self.last_message = message
+
+    def clear(self):
+        self.stream.write('\r{}\r'.format(' ' * len(self.last_message.rstrip())))
+        self.stream.flush()
+        self.last_message = ''
+
+    def message(self, cur, total):
+        return self.format.format(cur=cur, total=total,
+                                  bar=self.bar(cur, total))
+
+    def scale(self, range, cur, total):
+        return range * cur // max(total, 1)
+
+    def bar(self, cur, total):
+        n = self.scale(self.bar_width, cur, total)
+        return ('=' * n).ljust(self.bar_width)
+
+    def __call__(self, cur, total):
+        self.write(self.message(cur, total))
+
+
 def main():
-    for repo in sorted(get_github_list(ZOPE_GITHUB_LIST),
-                       key=itemgetter('full_name')):
+    progress = Progress()
+    progress.write('Fetching list of repositories from GitHub...')
+    repos = sorted(get_github_list(ZOPE_GITHUB_LIST), key=itemgetter('full_name'))
+    progress.clear()
+    for n, repo in enumerate(repos, 1):
         print("+ {full_name}".format(**repo))
+        progress(n, len(repos))
         dir = repo['name']
         if os.path.exists(dir):
             subprocess.call(['git', 'pull', '-q', '--ff-only'], cwd=dir)
         else:
             # use repo['git_url'] for anonymous checkouts
             subprocess.call(['git', 'clone', '-q', repo['ssh_url']])
+        progress.clear()
 
 
 if __name__ == '__main__':
