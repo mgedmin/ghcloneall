@@ -8,11 +8,14 @@ import sys
 import urllib.request
 from operator import itemgetter
 
+import requests
+import requests_cache
+
 
 __author__ = 'Marius Gedminas <marius@gedmin.as>'
 __licence__ = 'MIT'
 __url__ = 'https://github.com/mgedmin/cloneall'
-__version__ = '1.1'
+__version__ = '1.2.dev0'
 
 
 DEFAULT_ORGANIZATION = 'ZopeFoundation'
@@ -25,17 +28,12 @@ class Error(Exception):
 def get_json_and_headers(url):
     """Perform HTTP GET for a URL, return deserialized JSON and headers.
 
-    Returns a tuple (json_data, headers) where headers is an instance
-    of email.message.Message (because that's what urllib gives us).
+    Returns a tuple (json_data, headers) where headers is something dict-like.
     """
-    with urllib.request.urlopen(url) as r:
-        # We expect Github to return UTF-8, but let's verify that.
-        content_type = r.info().get('Content-Type', '').lower()
-        if content_type not in ('application/json; charset="utf-8"',
-                                'application/json; charset=utf-8'):
-            raise Error('Did not get UTF-8 JSON data from {}, got {}'
-                        .format(url, content_type))
-        return json.loads(r.read().decode('UTF-8')), r.info()
+    r = requests.get(url)
+    if 400 <= r.status_code < 500:
+        raise Error("Failed to fetch {}:\n{}".format(url, r.json()['message']))
+    return r.json(), r.headers
 
 
 def get_github_list(url, batch_size=100):
@@ -120,7 +118,17 @@ def main():
                         help='skip all repositories that come before REPO alphabetically')
     parser.add_argument('--organization', default=DEFAULT_ORGANIZATION,
                         help='specify the GitHub organization')
+    parser.add_argument('--http-cache', default='.httpcache', metavar='DBNAME',
+                        # .sqlite will be appended automatically
+                        help='cache HTTP requests on disk in an sqlite database (default: .httpcache)')
+    parser.add_argument('--no-http-cache', action='store_false', dest='http_cache',
+                        help='disable HTTP disk caching')
     args = parser.parse_args()
+    if args.http_cache:
+        requests_cache.install_cache(args.http_cache,
+                                     backend='sqlite',
+                                     expire_after=300)
+
     progress = Progress()
     progress.status('Fetching list of {} repositories from GitHub...'.format(args.organization))
     list_url = 'https://api.github.com/orgs/{}/repos'.format(args.organization)
