@@ -70,7 +70,9 @@ class Progress(object):
     format = '[{bar}] {cur}/{total}'
     bar_width = 20
     last_item = ''
-    cursor_up = '\033[A'
+    t_cursor_up = '\033[A'
+    t_reset = '\033[m'
+    t_green = '\033[32m'
 
     def status(self, message):
         if self.last_message:
@@ -104,9 +106,10 @@ class Progress(object):
         print(msg, file=self.stream)
         self.last_item = msg
 
-    def update(self, msg):
+    def update(self, msg, color=t_green):
         self.last_item += msg
-        print('{}{}'.format(self.cursor_up, self.last_item), file=self.stream)
+        print(''.join([self.t_cursor_up, color, self.last_item, self.t_reset]),
+              file=self.stream)
 
 
 def main():
