@@ -106,7 +106,7 @@ def main():
     repos = sorted(get_github_list(list_url), key=itemgetter('full_name'))
     progress.clear()
     for n, repo in enumerate(repos, 1):
-        print("+ {full_name}".format(**repo))
+        print("+ {name}".format(**repo))
         progress(n, len(repos))
         dir = repo['name']
         if os.path.exists(dir):
