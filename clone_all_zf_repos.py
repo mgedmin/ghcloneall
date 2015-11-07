@@ -12,7 +12,7 @@ from operator import itemgetter
 __author__ = 'Marius Gedminas <marius@gedmin.as>'
 __licence__ = 'MIT'
 __url__ = 'https://github.com/mgedmin/cloneall'
-__version__ = '1.1.dev0'
+__version__ = '1.1'
 
 
 DEFAULT_ORGANIZATION = 'ZopeFoundation'
