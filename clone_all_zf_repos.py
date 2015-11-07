@@ -15,9 +15,7 @@ __url__ = 'https://github.com/mgedmin/cloneall'
 __version__ = '1.1.dev0'
 
 
-# hardcoded configuration
-
-ORGANIZATION = 'ZopeFoundation'
+DEFAULT_ORGANIZATION = 'ZopeFoundation'
 
 
 class Error(Exception):
@@ -115,15 +113,17 @@ class Progress(object):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Clone/update all {} repositories from GitHub".format(ORGANIZATION))
+        description="Clone/update all organization repositories from GitHub")
     parser.add_argument('--version', action='version',
                         version="%(prog)s version " + __version__)
     parser.add_argument('--start-from', metavar='REPO',
                         help='skip all repositories that come before REPO alphabetically')
+    parser.add_argument('--organization', default=DEFAULT_ORGANIZATION,
+                        help='specify the GitHub organization')
     args = parser.parse_args()
     progress = Progress()
-    progress.status('Fetching list of {} repositories from GitHub...'.format(ORGANIZATION))
-    list_url = 'https://api.github.com/orgs/{}/repos'.format(ORGANIZATION)
+    progress.status('Fetching list of {} repositories from GitHub...'.format(args.organization))
+    list_url = 'https://api.github.com/orgs/{}/repos'.format(args.organization)
     repos = sorted(get_github_list(list_url), key=itemgetter('name'))
     progress.clear()
     for n, repo in enumerate(repos, 1):
