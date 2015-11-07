@@ -70,7 +70,7 @@ class Progress(object):
     format = '[{bar}] {cur}/{total}'
     bar_width = 20
 
-    def write(self, message):
+    def status(self, message):
         if self.last_message:
             self.clear()
         self.stream.write('\r')
@@ -96,12 +96,12 @@ class Progress(object):
         return ('=' * n).ljust(self.bar_width)
 
     def __call__(self, cur, total):
-        self.write(self.message(cur, total))
+        self.status(self.message(cur, total))
 
 
 def main():
     progress = Progress()
-    progress.write('Fetching list of {} repositories from GitHub...'.format(ORGANIZATION))
+    progress.status('Fetching list of {} repositories from GitHub...'.format(ORGANIZATION))
     list_url = 'https://api.github.com/orgs/{}/repos'.format(ORGANIZATION)
     repos = sorted(get_github_list(list_url), key=itemgetter('full_name'))
     progress.clear()
