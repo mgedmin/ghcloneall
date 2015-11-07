@@ -112,8 +112,8 @@ def main():
         if os.path.exists(dir):
             subprocess.call(['git', 'pull', '-q', '--ff-only'], cwd=dir)
         else:
-            # use repo['git_url'] for anonymous checkouts
-            subprocess.call(['git', 'clone', '-q', repo['ssh_url']])
+            # use repo['ssh_url'] for writable checkouts
+            subprocess.call(['git', 'clone', '-q', repo['git_url']])
         progress.clear()
 
 
