@@ -11,7 +11,7 @@ from operator import itemgetter
 __author__ = 'Marius Gedminas <marius@gedmin.as>'
 __licence__ = 'MIT'
 __url__ = 'https://github.com/mgedmin/cloneall'
-__version__ = '1.0'
+__version__ = '1.0.1'
 
 
 class Error(Exception):
@@ -116,4 +116,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass
