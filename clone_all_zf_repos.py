@@ -126,11 +126,13 @@ def main():
     list_url = 'https://api.github.com/orgs/{}/repos'.format(args.organization)
     repos = sorted(get_github_list(list_url), key=itemgetter('name'))
     progress.clear()
+    n_fetched = n_updated = n_new = 0
     for n, repo in enumerate(repos, 1):
         if args.start_from and repo['name'] < args.start_from:
             continue
         progress.item("+ {name}".format(**repo))
         progress(n, len(repos))
+        n_fetched += 1
         dir = repo['name']
         if os.path.exists(dir):
             old_sha = subprocess.check_output(['git', 'describe', '--always', '--dirty'], cwd=dir)
@@ -138,11 +140,15 @@ def main():
             new_sha = subprocess.check_output(['git', 'describe', '--always', '--dirty'], cwd=dir)
             if old_sha != new_sha:
                 progress.update(' (updated)')
+                n_updated += 1
         else:
             # use repo['ssh_url'] for writable checkouts
             subprocess.call(['git', 'clone', '-q', repo['git_url']])
             progress.update(' (new)')
+            n_new += 1
         progress.clear()
+    print("{n_fetched} repositories: {n_updated} updated, {n_new} new.".format(
+          n_fetched=n_fetched, n_updated=n_updated, n_new=n_new))
 
 
 if __name__ == '__main__':
