@@ -1,10 +1,11 @@
 #!/usr/bin/python3
 
+import argparse
 import json
 import os
 import subprocess
-import urllib.request
 import sys
+import urllib.request
 from operator import itemgetter
 
 
@@ -113,12 +114,21 @@ class Progress(object):
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="Clone/update all {} repositories from GitHub".format(ORGANIZATION))
+    parser.add_argument('--version', action='version',
+                        version="%(prog)s version " + __version__)
+    parser.add_argument('--start-from', metavar='REPO',
+                        help='skip all repositories that come before REPO alphabetically')
+    args = parser.parse_args()
     progress = Progress()
     progress.status('Fetching list of {} repositories from GitHub...'.format(ORGANIZATION))
     list_url = 'https://api.github.com/orgs/{}/repos'.format(ORGANIZATION)
-    repos = sorted(get_github_list(list_url), key=itemgetter('full_name'))
+    repos = sorted(get_github_list(list_url), key=itemgetter('name'))
     progress.clear()
     for n, repo in enumerate(repos, 1):
+        if args.start_from and repo['name'] < args.start_from:
+            continue
         progress.item("+ {name}".format(**repo))
         progress(n, len(repos))
         dir = repo['name']
