@@ -11,7 +11,12 @@ from operator import itemgetter
 __author__ = 'Marius Gedminas <marius@gedmin.as>'
 __licence__ = 'MIT'
 __url__ = 'https://github.com/mgedmin/cloneall'
-__version__ = '1.0.1'
+__version__ = '1.1.dev0'
+
+
+# hardcoded configuration
+
+ORGANIZATION = 'ZopeFoundation'
 
 
 class Error(Exception):
@@ -59,10 +64,6 @@ def get_github_list(url, batch_size=100):
     return res
 
 
-ZOPE_GITHUB_LIST = 'https://api.github.com/orgs/ZopeFoundation/repos'
-EXCEPTIONS = set()
-
-
 class Progress(object):
     stream = sys.stdout
     last_message = ''
@@ -100,8 +101,9 @@ class Progress(object):
 
 def main():
     progress = Progress()
-    progress.write('Fetching list of repositories from GitHub...')
-    repos = sorted(get_github_list(ZOPE_GITHUB_LIST), key=itemgetter('full_name'))
+    progress.write('Fetching list of {} repositories from GitHub...'.format(ORGANIZATION))
+    list_url = 'https://api.github.com/orgs/{}/repos'.format(ORGANIZATION)
+    repos = sorted(get_github_list(list_url), key=itemgetter('full_name'))
     progress.clear()
     for n, repo in enumerate(repos, 1):
         print("+ {full_name}".format(**repo))
