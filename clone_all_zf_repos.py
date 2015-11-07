@@ -69,6 +69,8 @@ class Progress(object):
     last_message = ''
     format = '[{bar}] {cur}/{total}'
     bar_width = 20
+    last_item = ''
+    cursor_up = '\033[A'
 
     def status(self, message):
         if self.last_message:
@@ -98,6 +100,14 @@ class Progress(object):
     def __call__(self, cur, total):
         self.status(self.message(cur, total))
 
+    def item(self, msg):
+        print(msg, file=self.stream)
+        self.last_item = msg
+
+    def update(self, msg):
+        self.last_item += msg
+        print('{}{}'.format(self.cursor_up, self.last_item), file=self.stream)
+
 
 def main():
     progress = Progress()
@@ -106,14 +116,19 @@ def main():
     repos = sorted(get_github_list(list_url), key=itemgetter('full_name'))
     progress.clear()
     for n, repo in enumerate(repos, 1):
-        print("+ {name}".format(**repo))
+        progress.item("+ {name}".format(**repo))
         progress(n, len(repos))
         dir = repo['name']
         if os.path.exists(dir):
+            old_sha = subprocess.check_output(['git', 'describe', '--always', '--dirty'], cwd=dir)
             subprocess.call(['git', 'pull', '-q', '--ff-only'], cwd=dir)
+            new_sha = subprocess.check_output(['git', 'describe', '--always', '--dirty'], cwd=dir)
+            if old_sha != new_sha:
+                progress.update(' (updated)')
         else:
             # use repo['ssh_url'] for writable checkouts
             subprocess.call(['git', 'clone', '-q', repo['git_url']])
+            progress.update(' (new)')
         progress.clear()
 
 
