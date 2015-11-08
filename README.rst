@@ -10,18 +10,14 @@ Usage::
     ln -s ~/src/cloneall/clone_all_zf_repos.py cloneall.py
     ./cloneall.py
 
-Example output::
+Example output:
 
-    + AccessControl
-    + Acquisition
-    + AuthEncoding
-    + BTrees
-    + CMF-buildout
-    + DateTime
-    + DocumentTemplate
-    + ExtensionClass
-    + Missing
-    [                    ] 9/339
+.. image:: https://asciinema.org/a/29580.png
+   :alt: asciicast
+   :width: 582
+   :height: 380
+   :align: center
+   :target: https://asciinema.org/a/29580
 
 What it does:
 
