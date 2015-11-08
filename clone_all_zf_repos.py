@@ -134,7 +134,7 @@ def main():
     list_url = 'https://api.github.com/orgs/{}/repos'.format(args.organization)
     repos = sorted(get_github_list(list_url), key=itemgetter('name'))
     progress.clear()
-    n_fetched = n_updated = n_new = 0
+    n_fetched = n_updated = n_new = n_dirty = 0
     for n, repo in enumerate(repos, 1):
         if args.start_from and repo['name'] < args.start_from:
             continue
@@ -149,14 +149,23 @@ def main():
             if old_sha != new_sha:
                 progress.update(' (updated)')
                 n_updated += 1
+            # commands borrowed from /usr/lib/git-core/git-sh-prompt
+            dirty = 0
+            if subprocess.call(['git', 'diff', '--no-ext-diff', '--quiet', '--exit-code'], cwd=dir) != 0:
+                progress.update(' (local changes)')
+                dirty = 1
+            if subprocess.call(['git', 'diff-index', '--cached', '--quiet', 'HEAD', '--'], cwd=dir) != 0:
+                progress.update(' (staged changes)')
+                dirty = 1
+            n_dirty += dirty
         else:
             # use repo['ssh_url'] for writable checkouts
             subprocess.call(['git', 'clone', '-q', repo['git_url']])
             progress.update(' (new)')
             n_new += 1
         progress.clear()
-    print("{n_fetched} repositories: {n_updated} updated, {n_new} new.".format(
-          n_fetched=n_fetched, n_updated=n_updated, n_new=n_new))
+    print("{n_fetched} repositories: {n_updated} updated, {n_new} new, {n_dirty} dirty.".format(
+          n_fetched=n_fetched, n_updated=n_updated, n_new=n_new, n_dirty=n_dirty))
 
 
 if __name__ == '__main__':
