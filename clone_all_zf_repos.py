@@ -116,7 +116,7 @@ def main():
                         version="%(prog)s version " + __version__)
     parser.add_argument('-n', '--dry-run', action='store_true',
                         help="don't pull/clone, just print what would be done")
-    parser.add_argument('-v', '--verbose', action='store_true',
+    parser.add_argument('-v', '--verbose', action='count',
                         help="perform additional checks")
     parser.add_argument('--start-from', metavar='REPO',
                         help='skip all repositories that come before REPO alphabetically')
@@ -169,9 +169,17 @@ def main():
                 progress.update(' (not on master)')
                 dirty = 1
             if args.verbose:
-                if subprocess.call(['git', 'ls-files', '--others', '--exclude-standard', '--error-unmatch', '--', ':/*'], cwd=dir,
-                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0:
+                unknown_files = subprocess.check_output(['git', 'ls-files', '--others', '--exclude-standard', '--', ':/*'], cwd=dir)
+                if unknown_files:
                     progress.update(' (unknown files)')
+                    if args.verbose >= 2:
+                        progress.status('')
+                        files = unknown_files.decode('UTF-8', 'replace').splitlines()
+                        for n, fn in enumerate(files):
+                            if args.verbose < 3 and n == 10:
+                                print('    (and %d more)' % (len(files) - n))
+                                break
+                            print('   ', fn)
                     dirty = 1
             n_dirty += dirty
         else:
