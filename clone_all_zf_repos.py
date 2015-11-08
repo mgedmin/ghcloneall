@@ -160,6 +160,9 @@ def main():
             if subprocess.check_output(['git', 'rev-list', '@{u}..'], cwd=dir) != b'':
                 progress.update(' (local commits)')
                 dirty = 1
+            if subprocess.check_output(['git', 'symbolic-ref', 'HEAD'], cwd=dir) != b'refs/heads/master\n':
+                progress.update(' (not on master)')
+                dirty = 1
             n_dirty += dirty
         else:
             # use repo['git_url'] for anonymous checkouts
