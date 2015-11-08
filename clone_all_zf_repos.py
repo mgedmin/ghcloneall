@@ -114,6 +114,8 @@ def main():
         description="Clone/update all organization repositories from GitHub")
     parser.add_argument('--version', action='version',
                         version="%(prog)s version " + __version__)
+    parser.add_argument('-n', '--dry-run', action='store_true', dest='dry_run',
+                        help="don't pull/clone, just print what would be done")
     parser.add_argument('--start-from', metavar='REPO',
                         help='skip all repositories that come before REPO alphabetically')
     parser.add_argument('--organization', default=DEFAULT_ORGANIZATION,
@@ -143,12 +145,13 @@ def main():
         n_fetched += 1
         dir = repo['name']
         if os.path.exists(dir):
-            old_sha = subprocess.check_output(['git', 'describe', '--always', '--dirty'], cwd=dir)
-            subprocess.call(['git', 'pull', '-q', '--ff-only'], cwd=dir)
-            new_sha = subprocess.check_output(['git', 'describe', '--always', '--dirty'], cwd=dir)
-            if old_sha != new_sha:
-                progress.update(' (updated)')
-                n_updated += 1
+            if not args.dry_run:
+                old_sha = subprocess.check_output(['git', 'describe', '--always', '--dirty'], cwd=dir)
+                subprocess.call(['git', 'pull', '-q', '--ff-only'], cwd=dir)
+                new_sha = subprocess.check_output(['git', 'describe', '--always', '--dirty'], cwd=dir)
+                if old_sha != new_sha:
+                    progress.update(' (updated)')
+                    n_updated += 1
             # commands borrowed from /usr/lib/git-core/git-sh-prompt
             dirty = 0
             if subprocess.call(['git', 'diff', '--no-ext-diff', '--quiet', '--exit-code'], cwd=dir) != 0:
@@ -165,8 +168,9 @@ def main():
                 dirty = 1
             n_dirty += dirty
         else:
-            # use repo['git_url'] for anonymous checkouts
-            subprocess.call(['git', 'clone', '-q', repo['ssh_url']])
+            if not args.dry_run:
+                # use repo['git_url'] for anonymous checkouts
+                subprocess.call(['git', 'clone', '-q', repo['ssh_url']])
             progress.update(' (new)')
             n_new += 1
         progress.clear()
