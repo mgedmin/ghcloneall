@@ -169,6 +169,14 @@ def main():
                 progress.update(' (not on master)')
                 dirty = 1
             if args.verbose:
+                remote_url = subprocess.check_output(['git', 'ls-remote', '--get-url'], cwd=dir)
+                remote_url = remote_url.decode('UTF-8', 'replace').strip()
+                if remote_url != repo['ssh_url'] and remote_url + '.git' != repo['ssh_url']:
+                    progress.update(' (wrong remote url)')
+                    if args.verbose >= 2:
+                        progress.status('')
+                        print('   ', remote_url)
+                    dirty = 1
                 unknown_files = subprocess.check_output(['git', 'ls-files', '--others', '--exclude-standard', '--', ':/*'], cwd=dir)
                 if unknown_files:
                     progress.update(' (unknown files)')
