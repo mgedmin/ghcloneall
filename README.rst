@@ -24,6 +24,7 @@ What it does:
 - clones repositories you don't have locally
 - pulls changes for repositories you already have locally
 - warns you about local changes and other unexpected situations:
+
   - unknown files in the tree (in --verbose mode only)
   - staged but not committed changes
   - uncommitted (and unstaged changes)
@@ -34,8 +35,31 @@ What it does:
 You can speed up the checks for local unpublished changes by running
 ``./cloneall.py -n``: this will skip the ``git pull``/``git clone``.
 
+Other command-line options::
+
+    $ ./cloneall.py --help
+    usage: cloneall.py [-h] [--version] [-n] [-v] [--start-from REPO]
+                       [--organization ORGANIZATION] [--http-cache DBNAME]
+                       [--no-http-cache]
+
+    Clone/update all organization repositories from GitHub
+
+    optional arguments:
+      -h, --help            show this help message and exit
+      --version             show program's version number and exit
+      -n, --dry-run         don't pull/clone, just print what would be done
+      -v, --verbose         perform additional checks
+      --start-from REPO     skip all repositories that come before REPO
+                            alphabetically
+      --organization ORGANIZATION
+                            specify the GitHub organization (default:
+                            ZopeFoundation)
+      --http-cache DBNAME   cache HTTP requests on disk in an sqlite database
+                            (default: .httpcache)
+      --no-http-cache       disable HTTP disk caching
+
 For best results configure SSH persistence, to speed up git pulls -- in your
-``~/.ssh/config``:
+``~/.ssh/config``::
 
     Host github.com
     ControlMaster auto

@@ -121,7 +121,7 @@ def main():
     parser.add_argument('--start-from', metavar='REPO',
                         help='skip all repositories that come before REPO alphabetically')
     parser.add_argument('--organization', default=DEFAULT_ORGANIZATION,
-                        help='specify the GitHub organization')
+                        help='specify the GitHub organization (default: %s)' % DEFAULT_ORGANIZATION)
     parser.add_argument('--http-cache', default='.httpcache', metavar='DBNAME',
                         # .sqlite will be appended automatically
                         help='cache HTTP requests on disk in an sqlite database (default: .httpcache)')
