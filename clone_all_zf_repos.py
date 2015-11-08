@@ -159,8 +159,8 @@ def main():
                 dirty = 1
             n_dirty += dirty
         else:
-            # use repo['ssh_url'] for writable checkouts
-            subprocess.call(['git', 'clone', '-q', repo['git_url']])
+            # use repo['git_url'] for anonymous checkouts
+            subprocess.call(['git', 'clone', '-q', repo['ssh_url']])
             progress.update(' (new)')
             n_new += 1
         progress.clear()
