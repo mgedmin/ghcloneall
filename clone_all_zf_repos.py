@@ -157,6 +157,9 @@ def main():
             if subprocess.call(['git', 'diff-index', '--cached', '--quiet', 'HEAD', '--'], cwd=dir) != 0:
                 progress.update(' (staged changes)')
                 dirty = 1
+            if subprocess.check_output(['git', 'rev-list', '@{u}..'], cwd=dir) != b'':
+                progress.update(' (local commits)')
+                dirty = 1
             n_dirty += dirty
         else:
             # use repo['git_url'] for anonymous checkouts
