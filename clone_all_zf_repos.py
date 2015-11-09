@@ -220,17 +220,26 @@ class RepoWrangler(object):
 
     def process(self, repo):
         item = self.progress.item("+ {name}".format(**repo))
-        task = RepoTask(repo, item, self, self)
+        task = RepoTask(repo, item, self, self.task_finished)
         task.run()
+
+    def task_finished(self, task):
+        self.n_repos += 1
+        self.n_new += task.new
+        self.n_updated += task.updated
+        self.n_dirty += task.dirty
 
 
 class RepoTask(object):
 
-    def __init__(self, repo, progress_item, options, counters):
+    def __init__(self, repo, progress_item, options, finished_callback):
         self.repo = repo
         self.progress_item = progress_item
         self.options = options
-        self.counters = counters
+        self.finished_callback = finished_callback
+        self.updated = False
+        self.new = False
+        self.dirty = False
 
     def repo_dir(self, repo):
         return repo['name']
@@ -318,14 +327,15 @@ class RepoTask(object):
             self.verify(self.repo, dir)
         else:
             self.clone(self.repo, dir)
-        self.counters.n_repos += 1
+        if self.finished_callback:
+            self.finished_callback(self)
 
     def clone(self, repo, dir):
         if not self.options.dry_run:
             self.progress_item.update(' (new)')
             url = self.repo_url(repo)
             self.check_call(['git', 'clone', '-q', url])
-        self.counters.n_new += 1
+        self.new = True
 
     def update(self, repo, dir):
         if not self.options.dry_run:
@@ -334,32 +344,31 @@ class RepoTask(object):
             new_sha = self.get_current_commit(dir)
             if old_sha != new_sha:
                 self.progress_item.update(' (updated)')
-                self.counters.n_updated += 1
+                self.updated = True
 
     def verify(self, repo, dir):
-        dirty = 0
         if self.has_local_changes(dir):
             self.progress_item.update(' (local changes)')
-            dirty = 1
+            self.dirty = True
         if self.has_staged_changes(dir):
             self.progress_item.update(' (staged changes)')
-            dirty = 1
+            self.dirty = True
         if self.has_local_commits(dir):
             self.progress_item.update(' (local commits)')
-            dirty = 1
+            self.dirty = True
         branch = self.get_current_branch(dir)
         if branch != 'master':
             self.progress_item.update(' (not on master)')
             if self.options.verbose >= 2:
                 self.progress_item.extra_info('branch: {}'.format(branch))
-            dirty = 1
+            self.dirty = True
         if self.options.verbose:
             remote_url = self.get_remote_url(dir)
             if remote_url != repo['ssh_url'] and remote_url + '.git' != repo['ssh_url']:
                 self.progress_item.update(' (wrong remote url)')
                 if self.options.verbose >= 2:
                     self.progress_item.extra_info('remote: {}'.format(remote_url))
-                dirty = 1
+                self.dirty = True
         if self.options.verbose:
             unknown_files = self.get_unknown_files(dir)
             if unknown_files:
@@ -368,8 +377,7 @@ class RepoTask(object):
                     if self.options.verbose < 3 and len(unknown_files) > 10:
                         unknown_files[10:] = ['(and %d more)' % (len(unknown_files) - 10)]
                     self.progress_item.extra_info('\n'.join(unknown_files))
-                dirty = 1
-        self.counters.n_dirty += dirty
+                self.dirty = True
 
     def has_local_changes(self, dir):
         # command borrowed from /usr/lib/git-core/git-sh-prompt
