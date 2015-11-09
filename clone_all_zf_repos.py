@@ -132,11 +132,15 @@ class RepoWrangler(object):
         # (at least as long as you use SSH connection multiplexing)
         return repo['ssh_url']
 
+    def decode(self, output):
+        return output.decode('UTF-8', 'replace')
+
     def process(self, repo):
         self.progress.item("+ {name}".format(**repo))
         dir = self.repo_dir(repo)
         if os.path.exists(dir):
             self.update(repo, dir)
+            self.verify(repo, dir)
         else:
             self.clone(repo, dir)
         self.n_repos += 1
@@ -156,42 +160,63 @@ class RepoWrangler(object):
             if old_sha != new_sha:
                 self.progress.update(' (updated)')
                 self.n_updated += 1
-        # commands borrowed from /usr/lib/git-core/git-sh-prompt
+
+    def verify(self, repo, dir):
         dirty = 0
-        if subprocess.call(['git', 'diff', '--no-ext-diff', '--quiet', '--exit-code'], cwd=dir) != 0:
+        if self.has_local_changes(dir):
             self.progress.update(' (local changes)')
             dirty = 1
-        if subprocess.call(['git', 'diff-index', '--cached', '--quiet', 'HEAD', '--'], cwd=dir) != 0:
+        if self.has_staged_changes(dir):
             self.progress.update(' (staged changes)')
             dirty = 1
-        if subprocess.check_output(['git', 'rev-list', '@{u}..'], cwd=dir) != b'':
+        if self.has_local_commits(dir):
             self.progress.update(' (local commits)')
             dirty = 1
-        if subprocess.check_output(['git', 'symbolic-ref', 'HEAD'], cwd=dir) != b'refs/heads/master\n':
+        if self.get_current_head(dir) != 'refs/heads/master':
             self.progress.update(' (not on master)')
             dirty = 1
         if self.verbose:
-            remote_url = subprocess.check_output(['git', 'ls-remote', '--get-url'], cwd=dir)
-            remote_url = remote_url.decode('UTF-8', 'replace').strip()
+            remote_url = self.get_remote_url(dir)
             if remote_url != repo['ssh_url'] and remote_url + '.git' != repo['ssh_url']:
                 self.progress.update(' (wrong remote url)')
                 if self.verbose >= 2:
                     self.progress.status('')
                     print('   ', remote_url)
                 dirty = 1
-            unknown_files = subprocess.check_output(['git', 'ls-files', '--others', '--exclude-standard', '--', ':/*'], cwd=dir)
+        if self.verbose:
+            unknown_files = self.get_unknown_files(dir)
             if unknown_files:
                 self.progress.update(' (unknown files)')
                 if self.verbose >= 2:
                     self.progress.status('')
-                    files = unknown_files.decode('UTF-8', 'replace').splitlines()
-                    for n, fn in enumerate(files):
+                    for n, fn in enumerate(unknown_files):
                         if args.verbose < 3 and n == 10:
                             print('    (and %d more)' % (len(files) - n))
                             break
                         print('   ', fn)
                 dirty = 1
         self.n_dirty += dirty
+
+    def has_local_changes(self, dir):
+        # command borrowed from /usr/lib/git-core/git-sh-prompt
+        return subprocess.call(['git', 'diff', '--no-ext-diff', '--quiet', '--exit-code'], cwd=dir) != 0
+
+    def has_staged_changes(self, dir):
+        # command borrowed from /usr/lib/git-core/git-sh-prompt
+        return subprocess.call(['git', 'diff-index', '--cached', '--quiet', 'HEAD', '--'], cwd=dir) != 0
+
+    def has_local_commits(self, dir):
+        return subprocess.check_output(['git', 'rev-list', '@{u}..'], cwd=dir) != b''
+
+    def get_current_head(self, dir):
+        return self.decode(subprocess.check_output(['git', 'symbolic-ref', 'HEAD'], cwd=dir).strip())
+
+    def get_remote_url(self, dir):
+        return self.decode(subprocess.check_output(['git', 'ls-remote', '--get-url'], cwd=dir).strip())
+
+    def get_unknown_files(self, dir):
+        # command borrowed from /usr/lib/git-core/git-sh-prompt
+        return self.decode(subprocess.check_output(['git', 'ls-files', '--others', '--exclude-standard', '--', ':/*'], cwd=dir)).splitlines()
 
 
 def main():
