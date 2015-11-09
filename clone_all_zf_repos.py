@@ -395,7 +395,7 @@ def main():
         progress.clear()
         progress.set_limit(len(repos))
         wrangler = RepoWrangler(dry_run=args.dry_run, verbose=args.verbose, progress=progress)
-        for n, repo in enumerate(repos, 1):
+        for repo in repos:
             if args.start_from and repo['name'] < args.start_from:
                 continue
             wrangler.process(repo)
