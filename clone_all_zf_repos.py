@@ -189,6 +189,7 @@ class Progress(object):
                 self.progress.stream.write(''.join([indent, color, line, reset, '\n']))
                 self.extra_info_lines += 1
             self.progress.stream.flush()
+            self.progress.progress()
 
         def error_info(self, msg):
             """Print some extra information about an error."""
