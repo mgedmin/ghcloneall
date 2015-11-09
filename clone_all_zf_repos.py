@@ -89,6 +89,7 @@ class Progress(object):
     t_cursor_up = '\033[A'
     t_reset = '\033[m'
     t_green = '\033[32m'
+    t_red = '\033[31m'
     cur = total = 0
 
     def status(self, message):
@@ -148,12 +149,17 @@ class Progress(object):
                        '\n' * self.extra_info_lines]),
               file=self.stream)
 
-    def extra_info(self, msg):
+    def extra_info(self, msg, color='', reset='', indent='    '):
         """Print some extra information."""
         self.clear()
         for line in msg.splitlines():
-            print('   ', line, file=self.stream)
+            self.stream.write(''.join([indent, color, line, reset, '\n']))
             self.extra_info_lines += 1
+        self.stream.flush()
+
+    def error_info(self, msg):
+        """Print some extra information about an error."""
+        self.extra_info(msg, color=self.t_red, reset=self.t_reset)
 
 
 class RepoWrangler(object):
@@ -185,13 +191,66 @@ class RepoWrangler(object):
             head = head[len('heads/'):]
         return head
 
+    def pretty_command(self, args):
+        if self.verbose:
+            return ' '.join(args)
+        else:
+            return ' '.join(args[:2])  # 'git diff' etc.
+
     def call(self, args, **kwargs):
-        retcode = subprocess.call(args, **kwargs)
+        """Call a subprocess and return its exit code.
+
+        The subprocess is expected to produce no output.  If any output is
+        seen, it'll be displayed as an error.
+        """
+        p = subprocess.Popen(args, stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT, **kwargs)
+        output, _ = p.communicate()
+        retcode = p.wait()
+        if output:
+            self.progress.error_info(self.decode(output))
+            self.progress.error_info('{command} exited with {rc}'.format(command=self.pretty_command(args),
+                                                                         rc=retcode))
         return retcode
 
+    def check_call(self, args, **kwargs):
+        """Call a subprocess.
+
+        The subprocess is expected to produce no output.  If any output is
+        seen, it'll be displayed as an error.
+
+        The subprocess is expected to return exit code 0.  If it returns
+        non-zero, that'll be displayed as an error.
+        """
+        p = subprocess.Popen(args, stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT, **kwargs)
+        output, _ = p.communicate()
+        retcode = p.wait()
+        if retcode != 0:
+            self.progress.update(' (failed)')
+        if output or retcode != 0:
+            self.progress.error_info(self.decode(output))
+            self.progress.error_info('{command} exited with {rc}'.format(command=self.pretty_command(args),
+                                                                         rc=retcode))
+
     def check_output(self, args, **kwargs):
-        output = subprocess.check_output(args, **kwargs)
-        return self.decode(output)
+        """Call a subprocess and return its standard output code.
+
+        The subprocess is expected to produce no output on stderr.  If any
+        output is seen, it'll be displayed as an error.
+
+        The subprocess is expected to return exit code 0.  If it returns
+        non-zero, that'll be displayed as an error.
+        """
+        p = subprocess.Popen(args, stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE, **kwargs)
+        stdout, stderr = p.communicate()
+        retcode = p.wait()
+        if retcode != 0:
+            self.progress.error_info(self.decode(stderr))
+            self.progress.error_info('{command} exited with {rc}'.format(command=self.pretty_command(args),
+                                                                         rc=retcode))
+        return self.decode(stdout)
 
     def process(self, repo):
         self.progress.item("+ {name}".format(**repo))
@@ -205,15 +264,15 @@ class RepoWrangler(object):
 
     def clone(self, repo, dir):
         if not self.dry_run:
+            self.progress.update(' (new)')
             url = self.repo_url(repo)
-            self.call(['git', 'clone', '-q', url])
-        self.progress.update(' (new)')
+            self.check_call(['git', 'clone', '-q', url])
         self.n_new += 1
 
     def update(self, repo, dir):
         if not self.dry_run:
             old_sha = self.get_current_commit(dir)
-            self.call(['git', 'pull', '-q', '--ff-only'], cwd=dir)
+            self.check_call(['git', 'pull', '-q', '--ff-only'], cwd=dir)
             new_sha = self.get_current_commit(dir)
             if old_sha != new_sha:
                 self.progress.update(' (updated)')
