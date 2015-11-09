@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import sys
+import threading
 import urllib.request
 from operator import itemgetter
 
@@ -63,6 +64,14 @@ def get_github_list(url, batch_size=100, progress_callback=None):
     return res
 
 
+def synchronized(method):
+    def wrapper(self, *args, **kw):
+        with self.lock:
+            return method(self, *args, **kw)
+    return wrapper
+
+
+
 class Progress(object):
     """A progress bar.
 
@@ -98,6 +107,7 @@ class Progress(object):
         self.last_status = ''  # so we know how many characters to erase
         self.cur = self.total = 0
         self.items = []
+        self.lock = threading.Lock()
 
     def status(self, message):
         """Replace the status message."""
@@ -149,6 +159,7 @@ class Progress(object):
         self.total = total
         self.progress()
 
+    @synchronized
     def item(self, msg=''):
         """Show an item and update the progress bar."""
         item = self.Item(self, msg, len(self.items))
@@ -160,6 +171,7 @@ class Progress(object):
         self.progress()
         return item
 
+    @synchronized
     def update_item(self, item):
         n = sum(i.height for i in self.items[item.idx:])
         self.stream.write(''.join([
@@ -171,6 +183,7 @@ class Progress(object):
         ]))
         self.stream.flush()
 
+    @synchronized
     def extra_info(self, item, lines):
         n = sum(i.height for i in self.items[item.idx + 1:])
         if n:
@@ -235,6 +248,7 @@ class RepoWrangler(object):
         self.dry_run = dry_run
         self.verbose = verbose or 0
         self.progress = progress if progress else Progress()
+        self.lock = threading.Lock()
 
     def list_repos(self, organization):
         self.progress.status('Fetching list of {} repositories from GitHub...'.format(organization))
@@ -244,11 +258,12 @@ class RepoWrangler(object):
         repos = get_github_list(list_url, progress_callback=progress_callback)
         return sorted(repos, key=itemgetter('name'))
 
-    def process(self, repo):
+    def process_task(self, repo):
         item = self.progress.item("+ {name}".format(**repo))
         task = RepoTask(repo, item, self, self.task_finished)
-        task.run()
+        return task
 
+    @synchronized
     def task_finished(self, task):
         self.n_repos += 1
         self.n_new += task.new
@@ -433,11 +448,40 @@ class RepoTask(object):
         return self.check_output(['git', 'ls-files', '--others', '--exclude-standard', '--', ':/*'], cwd=dir).splitlines()
 
 
+class SequentialJobQueue(object):
+
+    def add(self, task):
+        task.run()
+
+    def finish(self):
+        pass
+
+
+class ConcurrentJobQueue(object):
+
+    def __init__(self, concurrency=2):
+        self.jobs = []
+        self.concurrency = concurrency
+
+    def add(self, task):
+        while len(self.jobs) >= self.concurrency:
+            self.jobs.pop(0).join()
+        t = threading.Thread(target=task.run)
+        t.start()
+        self.jobs.append(t)
+
+    def finish(self):
+        while self.jobs:
+            self.jobs.pop(0).join()
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Clone/update all organization repositories from GitHub")
     parser.add_argument('--version', action='version',
                         version="%(prog)s version " + __version__)
+    parser.add_argument('-c', '--concurrency', type=int, default=4,
+                        help="set concurrency level")
     parser.add_argument('-n', '--dry-run', action='store_true',
                         help="don't pull/clone, just print what would be done")
     parser.add_argument('-v', '--verbose', action='count',
@@ -461,11 +505,17 @@ def main():
         wrangler = RepoWrangler(dry_run=args.dry_run, verbose=args.verbose, progress=progress)
         repos = wrangler.list_repos(args.organization)
         progress.set_limit(len(repos))
+        if args.concurrency < 2:
+            queue = SequentialJobQueue()
+        else:
+            queue = ConcurrentJobQueue(args.concurrency)
         for repo in repos:
             if args.start_from and repo['name'] < args.start_from:
                 progress.item()
                 continue
-            wrangler.process(repo)
+            task = wrangler.process_task(repo)
+            queue.add(task)
+        queue.finish()
         progress.finish("{0.n_repos} repositories: {0.n_updated} updated, {0.n_new} new, {0.n_dirty} dirty.".format(wrangler))
 
 
