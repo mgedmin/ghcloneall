@@ -70,10 +70,10 @@ class Progress(object):
     t_cursor_up = '\033[A'
     t_reset = '\033[m'
     t_green = '\033[32m'
+    cur = total = 0
 
     def status(self, message):
-        if self.last_message:
-            self.clear()
+        self.clear()
         self.stream.write('\r')
         self.stream.write(message)
         self.stream.write('\r')
@@ -81,9 +81,10 @@ class Progress(object):
         self.last_message = message
 
     def clear(self):
-        self.stream.write('\r{}\r'.format(' ' * len(self.last_message.rstrip())))
-        self.stream.flush()
-        self.last_message = ''
+        if self.last_message:
+            self.stream.write('\r{}\r'.format(' ' * len(self.last_message.rstrip())))
+            self.stream.flush()
+            self.last_message = ''
 
     def message(self, cur, total):
         return self.format.format(cur=cur, total=total,
@@ -96,17 +97,101 @@ class Progress(object):
         n = self.scale(self.bar_width, cur, total)
         return ('=' * n).ljust(self.bar_width)
 
-    def __call__(self, cur, total):
-        self.status(self.message(cur, total))
+    def set_limit(self, total):
+        self.total = total
 
     def item(self, msg):
+        self.clear()
         print(msg, file=self.stream)
         self.last_item = msg
+        self.cur += 1
+        self.status(self.message(self.cur, self.total))
 
     def update(self, msg, color=t_green):
         self.last_item += msg
         print(''.join([self.t_cursor_up, color, self.last_item, self.t_reset]),
               file=self.stream)
+
+
+class RepoWrangler(object):
+
+    def __init__(self, dry_run=False, verbose=0, progress=None):
+        self.n_repos = 0
+        self.n_updated = 0
+        self.n_new = 0
+        self.n_dirty = 0
+        self.dry_run = dry_run
+        self.verbose = verbose
+        self.progress = progress if progress else Progress()
+
+    def repo_dir(self, repo):
+        return repo['name']
+
+    def repo_url(self, repo):
+        # use repo['git_url'] for anonymous checkouts, but they'e slower
+        # (at least as long as you use SSH connection multiplexing)
+        return repo['ssh_url']
+
+    def process(self, repo):
+        self.progress.item("+ {name}".format(**repo))
+        dir = self.repo_dir(repo)
+        if os.path.exists(dir):
+            self.update(repo, dir)
+        else:
+            self.clone(repo, dir)
+        self.n_repos += 1
+
+    def clone(self, repo, dir):
+        if not self.dry_run:
+            url = self.repo_url(repo)
+            subprocess.call(['git', 'clone', '-q', url])
+        self.progress.update(' (new)')
+        self.n_new += 1
+
+    def update(self, repo, dir):
+        if not self.dry_run:
+            old_sha = subprocess.check_output(['git', 'describe', '--always', '--dirty'], cwd=dir)
+            subprocess.call(['git', 'pull', '-q', '--ff-only'], cwd=dir)
+            new_sha = subprocess.check_output(['git', 'describe', '--always', '--dirty'], cwd=dir)
+            if old_sha != new_sha:
+                self.progress.update(' (updated)')
+                self.n_updated += 1
+        # commands borrowed from /usr/lib/git-core/git-sh-prompt
+        dirty = 0
+        if subprocess.call(['git', 'diff', '--no-ext-diff', '--quiet', '--exit-code'], cwd=dir) != 0:
+            self.progress.update(' (local changes)')
+            dirty = 1
+        if subprocess.call(['git', 'diff-index', '--cached', '--quiet', 'HEAD', '--'], cwd=dir) != 0:
+            self.progress.update(' (staged changes)')
+            dirty = 1
+        if subprocess.check_output(['git', 'rev-list', '@{u}..'], cwd=dir) != b'':
+            self.progress.update(' (local commits)')
+            dirty = 1
+        if subprocess.check_output(['git', 'symbolic-ref', 'HEAD'], cwd=dir) != b'refs/heads/master\n':
+            self.progress.update(' (not on master)')
+            dirty = 1
+        if self.verbose:
+            remote_url = subprocess.check_output(['git', 'ls-remote', '--get-url'], cwd=dir)
+            remote_url = remote_url.decode('UTF-8', 'replace').strip()
+            if remote_url != repo['ssh_url'] and remote_url + '.git' != repo['ssh_url']:
+                self.progress.update(' (wrong remote url)')
+                if self.verbose >= 2:
+                    self.progress.status('')
+                    print('   ', remote_url)
+                dirty = 1
+            unknown_files = subprocess.check_output(['git', 'ls-files', '--others', '--exclude-standard', '--', ':/*'], cwd=dir)
+            if unknown_files:
+                self.progress.update(' (unknown files)')
+                if self.verbose >= 2:
+                    self.progress.status('')
+                    files = unknown_files.decode('UTF-8', 'replace').splitlines()
+                    for n, fn in enumerate(files):
+                        if args.verbose < 3 and n == 10:
+                            print('    (and %d more)' % (len(files) - n))
+                            break
+                        print('   ', fn)
+                dirty = 1
+        self.n_dirty += dirty
 
 
 def main():
@@ -138,67 +223,14 @@ def main():
     list_url = 'https://api.github.com/orgs/{}/repos'.format(args.organization)
     repos = sorted(get_github_list(list_url), key=itemgetter('name'))
     progress.clear()
-    n_fetched = n_updated = n_new = n_dirty = 0
+    progress.set_limit(len(repos))
+    wrangler = RepoWrangler(dry_run=args.dry_run, verbose=args.verbose, progress=progress)
     for n, repo in enumerate(repos, 1):
         if args.start_from and repo['name'] < args.start_from:
             continue
-        progress.item("+ {name}".format(**repo))
-        progress(n, len(repos))
-        n_fetched += 1
-        dir = repo['name']
-        if os.path.exists(dir):
-            if not args.dry_run:
-                old_sha = subprocess.check_output(['git', 'describe', '--always', '--dirty'], cwd=dir)
-                subprocess.call(['git', 'pull', '-q', '--ff-only'], cwd=dir)
-                new_sha = subprocess.check_output(['git', 'describe', '--always', '--dirty'], cwd=dir)
-                if old_sha != new_sha:
-                    progress.update(' (updated)')
-                    n_updated += 1
-            # commands borrowed from /usr/lib/git-core/git-sh-prompt
-            dirty = 0
-            if subprocess.call(['git', 'diff', '--no-ext-diff', '--quiet', '--exit-code'], cwd=dir) != 0:
-                progress.update(' (local changes)')
-                dirty = 1
-            if subprocess.call(['git', 'diff-index', '--cached', '--quiet', 'HEAD', '--'], cwd=dir) != 0:
-                progress.update(' (staged changes)')
-                dirty = 1
-            if subprocess.check_output(['git', 'rev-list', '@{u}..'], cwd=dir) != b'':
-                progress.update(' (local commits)')
-                dirty = 1
-            if subprocess.check_output(['git', 'symbolic-ref', 'HEAD'], cwd=dir) != b'refs/heads/master\n':
-                progress.update(' (not on master)')
-                dirty = 1
-            if args.verbose:
-                remote_url = subprocess.check_output(['git', 'ls-remote', '--get-url'], cwd=dir)
-                remote_url = remote_url.decode('UTF-8', 'replace').strip()
-                if remote_url != repo['ssh_url'] and remote_url + '.git' != repo['ssh_url']:
-                    progress.update(' (wrong remote url)')
-                    if args.verbose >= 2:
-                        progress.status('')
-                        print('   ', remote_url)
-                    dirty = 1
-                unknown_files = subprocess.check_output(['git', 'ls-files', '--others', '--exclude-standard', '--', ':/*'], cwd=dir)
-                if unknown_files:
-                    progress.update(' (unknown files)')
-                    if args.verbose >= 2:
-                        progress.status('')
-                        files = unknown_files.decode('UTF-8', 'replace').splitlines()
-                        for n, fn in enumerate(files):
-                            if args.verbose < 3 and n == 10:
-                                print('    (and %d more)' % (len(files) - n))
-                                break
-                            print('   ', fn)
-                    dirty = 1
-            n_dirty += dirty
-        else:
-            if not args.dry_run:
-                # use repo['git_url'] for anonymous checkouts
-                subprocess.call(['git', 'clone', '-q', repo['ssh_url']])
-            progress.update(' (new)')
-            n_new += 1
-        progress.clear()
-    print("{n_fetched} repositories: {n_updated} updated, {n_new} new, {n_dirty} dirty.".format(
-          n_fetched=n_fetched, n_updated=n_updated, n_new=n_new, n_dirty=n_dirty))
+        wrangler.process(repo)
+    progress.clear()
+    print("{0.n_repos} repositories: {0.n_updated} updated, {0.n_new} new, {0.n_dirty} dirty.".format(wrangler))
 
 
 if __name__ == '__main__':
