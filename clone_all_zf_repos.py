@@ -135,7 +135,7 @@ class Progress(object):
         return range * cur // max(total, 1)
 
     def bar(self, cur, total):
-        n = self.scale(self.bar_width, cur, total)
+        n = min(self.scale(self.bar_width, cur, total), self.bar_width)
         return ('=' * n).ljust(self.bar_width)
 
     def set_limit(self, total):
