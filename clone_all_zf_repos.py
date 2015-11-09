@@ -158,24 +158,28 @@ class Progress(object):
         self.progress()
         return item
 
-    class Item(object):
+    def update_item(self, item):
+        lines = sum(i.extra_info_lines + 1 for i in self.items[item.idx:])
+        self.stream.write(''.join([
+            self.t_cursor_up * lines,
+            self.t_green,
+            item.msg,
+            self.t_reset,
+            '\n' * lines,
+        ]))
+        self.stream.flush()
 
+    class Item(object):
         def __init__(self, progress, msg, idx):
             self.progress = progress
             self.msg = msg
             self.idx = idx
             self.extra_info_lines = 0
 
-        def update(self, msg, color=None):
+        def update(self, msg):
             """Update the last shown item and highlight it."""
-            if color is None:
-                color = self.progress.t_green
-            assert self is self.progress.items[-1]
             self.msg += msg
-            print(''.join([self.progress.t_cursor_up * (1 + self.extra_info_lines),
-                           color, self.msg, self.progress.t_reset,
-                           '\n' * self.extra_info_lines]),
-                  file=self.progress.stream)
+            self.progress.update_item(self)
 
         def extra_info(self, msg, color='', reset='', indent='    '):
             """Print some extra information."""
