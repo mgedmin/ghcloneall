@@ -106,6 +106,9 @@ class Progress(object):
             self.stream.flush()
             self.last_message = ''
 
+    def progress(self):
+        self.status(self.message(self.cur, self.total))
+
     def message(self, cur, total):
         return self.format.format(cur=cur, total=total,
                                   bar=self.bar(cur, total))
@@ -124,21 +127,31 @@ class Progress(object):
         times.
         """
         self.total = total
-        self.status(self.message(self.cur, self.total))
+        self.progress()
 
     def item(self, msg):
         """Show an item and update the progress bar."""
         self.clear()
         print(msg, file=self.stream)
         self.last_item = msg
+        self.extra_info_lines = 0
         self.cur += 1
-        self.status(self.message(self.cur, self.total))
+        self.progress()
 
     def update(self, msg, color=t_green):
         """Update the last shown item and highlight it."""
         self.last_item += msg
-        print(''.join([self.t_cursor_up, color, self.last_item, self.t_reset]),
+        print(''.join([self.t_cursor_up * (1 + self.extra_info_lines),
+                       color, self.last_item, self.t_reset,
+                       '\n' * self.extra_info_lines]),
               file=self.stream)
+
+    def extra_info(self, msg):
+        """Print some extra information."""
+        self.clear()
+        for line in msg.splitlines():
+            print('   ', line, file=self.stream)
+            self.extra_info_lines += 1
 
 
 class RepoWrangler(object):
@@ -162,6 +175,13 @@ class RepoWrangler(object):
 
     def decode(self, output):
         return output.decode('UTF-8', 'replace')
+
+    def branch_name(self, head):
+        if head.startswith('refs/'):
+            head = head[len('refs/'):]
+        if head.startswith('heads/'):
+            head = head[len('heads/'):]
+        return head
 
     def process(self, repo):
         self.progress.item("+ {name}".format(**repo))
@@ -200,28 +220,29 @@ class RepoWrangler(object):
         if self.has_local_commits(dir):
             self.progress.update(' (local commits)')
             dirty = 1
-        if self.get_current_head(dir) != 'refs/heads/master':
+        branch = self.get_current_branch(dir)
+        if branch != 'master':
             self.progress.update(' (not on master)')
+            if self.verbose >= 2:
+                self.progress.extra_info('branch: {}'.format(branch))
             dirty = 1
         if self.verbose:
             remote_url = self.get_remote_url(dir)
             if remote_url != repo['ssh_url'] and remote_url + '.git' != repo['ssh_url']:
                 self.progress.update(' (wrong remote url)')
                 if self.verbose >= 2:
-                    self.progress.status('')
-                    print('   ', remote_url)
+                    self.progress.extra_info('remote: {}'.format(remote_url))
                 dirty = 1
         if self.verbose:
             unknown_files = self.get_unknown_files(dir)
             if unknown_files:
                 self.progress.update(' (unknown files)')
                 if self.verbose >= 2:
-                    self.progress.status('')
                     for n, fn in enumerate(unknown_files):
-                        if args.verbose < 3 and n == 10:
-                            print('    (and %d more)' % (len(files) - n))
+                        if self.verbose < 3 and n == 10:
+                            self.progress.extra_info('(and %d more)' % (len(files) - n))
                             break
-                        print('   ', fn)
+                        self.progress.extra_info(fn)
                 dirty = 1
         self.n_dirty += dirty
 
@@ -238,6 +259,9 @@ class RepoWrangler(object):
 
     def get_current_head(self, dir):
         return self.decode(subprocess.check_output(['git', 'symbolic-ref', 'HEAD'], cwd=dir).strip())
+
+    def get_current_branch(self, dir):
+        return self.branch_name(self.get_current_head(dir))
 
     def get_remote_url(self, dir):
         return self.decode(subprocess.check_output(['git', 'ls-remote', '--get-url'], cwd=dir).strip())
