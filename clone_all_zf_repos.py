@@ -365,11 +365,9 @@ class RepoTask(object):
             if unknown_files:
                 self.progress_item.update(' (unknown files)')
                 if self.options.verbose >= 2:
-                    for n, fn in enumerate(unknown_files):
-                        if self.options.verbose < 3 and n == 10:
-                            self.progress_item.extra_info('(and %d more)' % (len(files) - n))
-                            break
-                        self.progress_item.extra_info(fn)
+                    if self.options.verbose < 3 and len(unknown_files) > 10:
+                        unknown_files[10:] = ['(and %d more)' % (len(unknown_files) - 10)]
+                    self.progress_item.extra_info('\n'.join(unknown_files))
                 dirty = 1
         self.counters.n_dirty += dirty
 
