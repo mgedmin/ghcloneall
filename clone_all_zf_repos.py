@@ -82,16 +82,21 @@ class Progress(object):
     - finish(msg) clear the progress bar/status message and print a summary
 
     """
-    stream = sys.stdout
-    last_message = ''
-    format = '[{bar}] {cur}/{total}'
+
+    progress_bar_format = '[{bar}] {cur}/{total}'
     bar_width = 20
-    last_item = ''
+
     t_cursor_up = '\033[A'
     t_reset = '\033[m'
     t_green = '\033[32m'
     t_red = '\033[31m'
-    cur = total = 0
+
+    def __init__(self, stream=sys.stdout):
+        self.stream = stream
+        self.last_status = ''  # so we know how many characters to erase
+        self.cur = self.total = 0
+        self.last_item = ''
+        self.extra_info_lines = 0
 
     def status(self, message):
         """Replace the status message."""
@@ -101,14 +106,14 @@ class Progress(object):
             self.stream.write(message)
             self.stream.write('\r')
             self.stream.flush()
-            self.last_message = message
+            self.last_status = message
 
     def clear(self):
         """Clear the status message."""
-        if self.last_message:
-            self.stream.write('\r{}\r'.format(' ' * len(self.last_message.rstrip())))
+        if self.last_status:
+            self.stream.write('\r{}\r'.format(' ' * len(self.last_status.rstrip())))
             self.stream.flush()
-            self.last_message = ''
+            self.last_status = ''
 
     def finish(self, msg=''):
         """Clear the status message and print a summary.
@@ -121,11 +126,11 @@ class Progress(object):
             print(msg, file=self.stream)
 
     def progress(self):
-        self.status(self.message(self.cur, self.total))
+        self.status(self.format_progress_bar(self.cur, self.total))
 
-    def message(self, cur, total):
-        return self.format.format(cur=cur, total=total,
-                                  bar=self.bar(cur, total))
+    def format_progress_bar(self, cur, total):
+        return self.progress_bar_format.format(
+            cur=cur, total=total, bar=self.bar(cur, total))
 
     def scale(self, range, cur, total):
         return range * cur // max(total, 1)
