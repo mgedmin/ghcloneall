@@ -62,6 +62,23 @@ def get_github_list(url, batch_size=100):
 
 
 class Progress(object):
+    """A progress bar.
+
+    There are two parts of progress output:
+
+    - a scrolling list of items
+    - a progress bar (or status message) at the bottom
+
+    These are controlled by the following API methods:
+
+    - status(msg) replaces the progress bar with a status message
+    - clear() clears the progress bar/status message
+    - set_total(n) defines how many items there will be in total
+    - item(text) shows an item and updates the progress bar
+    - update(extra_text) updates the last item (and highlights it in a
+      different color)
+
+    """
     stream = sys.stdout
     last_message = ''
     format = '[{bar}] {cur}/{total}'
@@ -73,14 +90,17 @@ class Progress(object):
     cur = total = 0
 
     def status(self, message):
+        """Replace the status message."""
         self.clear()
-        self.stream.write('\r')
-        self.stream.write(message)
-        self.stream.write('\r')
-        self.stream.flush()
-        self.last_message = message
+        if message:
+            self.stream.write('\r')
+            self.stream.write(message)
+            self.stream.write('\r')
+            self.stream.flush()
+            self.last_message = message
 
     def clear(self):
+        """Clear the status message."""
         if self.last_message:
             self.stream.write('\r{}\r'.format(' ' * len(self.last_message.rstrip())))
             self.stream.flush()
@@ -98,9 +118,16 @@ class Progress(object):
         return ('=' * n).ljust(self.bar_width)
 
     def set_limit(self, total):
+        """Specify the expected total number of items.
+
+        E.g. if you set_limit(10), this means you expect to call item() ten
+        times.
+        """
         self.total = total
+        self.status(self.message(self.cur, self.total))
 
     def item(self, msg):
+        """Show an item and update the progress bar."""
         self.clear()
         print(msg, file=self.stream)
         self.last_item = msg
@@ -108,6 +135,7 @@ class Progress(object):
         self.status(self.message(self.cur, self.total))
 
     def update(self, msg, color=t_green):
+        """Update the last shown item and highlight it."""
         self.last_item += msg
         print(''.join([self.t_cursor_up, color, self.last_item, self.t_reset]),
               file=self.stream)
