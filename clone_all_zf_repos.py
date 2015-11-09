@@ -185,6 +185,14 @@ class RepoWrangler(object):
             head = head[len('heads/'):]
         return head
 
+    def call(self, args, **kwargs):
+        retcode = subprocess.call(args, **kwargs)
+        return retcode
+
+    def check_output(self, args, **kwargs):
+        output = subprocess.check_output(args, **kwargs)
+        return self.decode(output)
+
     def process(self, repo):
         self.progress.item("+ {name}".format(**repo))
         dir = self.repo_dir(repo)
@@ -198,15 +206,15 @@ class RepoWrangler(object):
     def clone(self, repo, dir):
         if not self.dry_run:
             url = self.repo_url(repo)
-            subprocess.call(['git', 'clone', '-q', url])
+            self.call(['git', 'clone', '-q', url])
         self.progress.update(' (new)')
         self.n_new += 1
 
     def update(self, repo, dir):
         if not self.dry_run:
-            old_sha = subprocess.check_output(['git', 'describe', '--always', '--dirty'], cwd=dir)
-            subprocess.call(['git', 'pull', '-q', '--ff-only'], cwd=dir)
-            new_sha = subprocess.check_output(['git', 'describe', '--always', '--dirty'], cwd=dir)
+            old_sha = self.check_output(['git', 'describe', '--always', '--dirty'], cwd=dir)
+            self.call(['git', 'pull', '-q', '--ff-only'], cwd=dir)
+            new_sha = self.check_output(['git', 'describe', '--always', '--dirty'], cwd=dir)
             if old_sha != new_sha:
                 self.progress.update(' (updated)')
                 self.n_updated += 1
@@ -250,27 +258,27 @@ class RepoWrangler(object):
 
     def has_local_changes(self, dir):
         # command borrowed from /usr/lib/git-core/git-sh-prompt
-        return subprocess.call(['git', 'diff', '--no-ext-diff', '--quiet', '--exit-code'], cwd=dir) != 0
+        return self.call(['git', 'diff', '--no-ext-diff', '--quiet', '--exit-code'], cwd=dir) != 0
 
     def has_staged_changes(self, dir):
         # command borrowed from /usr/lib/git-core/git-sh-prompt
-        return subprocess.call(['git', 'diff-index', '--cached', '--quiet', 'HEAD', '--'], cwd=dir) != 0
+        return self.call(['git', 'diff-index', '--cached', '--quiet', 'HEAD', '--'], cwd=dir) != 0
 
     def has_local_commits(self, dir):
-        return subprocess.check_output(['git', 'rev-list', '@{u}..'], cwd=dir) != b''
+        return self.check_output(['git', 'rev-list', '@{u}..'], cwd=dir) != ''
 
     def get_current_head(self, dir):
-        return self.decode(subprocess.check_output(['git', 'symbolic-ref', 'HEAD'], cwd=dir).strip())
+        return self.check_output(['git', 'symbolic-ref', 'HEAD'], cwd=dir).strip()
 
     def get_current_branch(self, dir):
         return self.branch_name(self.get_current_head(dir))
 
     def get_remote_url(self, dir):
-        return self.decode(subprocess.check_output(['git', 'ls-remote', '--get-url'], cwd=dir).strip())
+        return self.check_output(['git', 'ls-remote', '--get-url'], cwd=dir).strip()
 
     def get_unknown_files(self, dir):
         # command borrowed from /usr/lib/git-core/git-sh-prompt
-        return self.decode(subprocess.check_output(['git', 'ls-files', '--others', '--exclude-standard', '--', ':/*'], cwd=dir)).splitlines()
+        return self.check_output(['git', 'ls-files', '--others', '--exclude-standard', '--', ':/*'], cwd=dir).splitlines()
 
 
 def main():
