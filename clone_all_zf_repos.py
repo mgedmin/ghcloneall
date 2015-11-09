@@ -143,10 +143,11 @@ class Progress(object):
         self.total = total
         self.progress()
 
-    def item(self, msg):
+    def item(self, msg=''):
         """Show an item and update the progress bar."""
-        self.clear()
-        print(msg, file=self.stream)
+        if msg:
+            self.clear()
+            print(msg, file=self.stream)
         self.last_item = msg
         self.extra_info_lines = 0
         self.cur += 1
@@ -400,6 +401,7 @@ def main():
         progress.set_limit(len(repos))
         for repo in repos:
             if args.start_from and repo['name'] < args.start_from:
+                progress.item()
                 continue
             wrangler.process(repo)
         progress.finish("{0.n_repos} repositories: {0.n_updated} updated, {0.n_new} new, {0.n_dirty} dirty.".format(wrangler))
