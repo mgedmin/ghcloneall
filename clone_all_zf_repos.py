@@ -36,13 +36,13 @@ def get_json_and_headers(url):
     return r.json(), r.headers
 
 
-def get_github_list(url, batch_size=100):
+def get_github_list(url, batch_size=100, progress_callback=None):
     """Perform (a series of) HTTP GETs for a URL, return deserialized JSON.
 
     Format of the JSON is documented at
     http://developer.github.com/v3/repos/#list-organization-repositories
 
-    Supports batching (which Github indicates by the presence of a Link header,
+    Supports batching (which GitHub indicates by the presence of a Link header,
     e.g. ::
 
         Link: <https://api.github.com/resource?page=2>; rel="next",
@@ -55,6 +55,8 @@ def get_github_list(url, batch_size=100):
     page = 1
     while 'rel="next"' in headers.get('Link', ''):
         page += 1
+        if progress_callback:
+            progress_callback(len(res))
         more, headers = get_json_and_headers('{}?page={}&per_page={}'.format(
                                                     url, page, batch_size))
         res += more
@@ -297,8 +299,10 @@ def main():
 
     progress = Progress()
     progress.status('Fetching list of {} repositories from GitHub...'.format(args.organization))
+    def progress_callback(n):
+        progress.status('Fetching list of {} repositories from GitHub... ({})'.format(args.organization, n))
     list_url = 'https://api.github.com/orgs/{}/repos'.format(args.organization)
-    repos = sorted(get_github_list(list_url), key=itemgetter('name'))
+    repos = sorted(get_github_list(list_url, progress_callback=progress_callback), key=itemgetter('name'))
     progress.clear()
     progress.set_limit(len(repos))
     wrangler = RepoWrangler(dry_run=args.dry_run, verbose=args.verbose, progress=progress)
