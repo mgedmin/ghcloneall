@@ -164,7 +164,7 @@ class RepoWrangler(object):
         self.n_new = 0
         self.n_dirty = 0
         self.dry_run = dry_run
-        self.verbose = verbose
+        self.verbose = verbose or 0
         self.progress = progress if progress else Progress()
 
     def repo_dir(self, repo):
