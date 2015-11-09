@@ -271,6 +271,14 @@ class RepoWrangler(object):
                                                                          rc=retcode))
         return self.decode(stdout)
 
+    def list_repos(self, organization):
+        self.progress.status('Fetching list of {} repositories from GitHub...'.format(organization))
+        def progress_callback(n):
+            self.progress.status('Fetching list of {} repositories from GitHub... ({})'.format(organization, n))
+        list_url = 'https://api.github.com/orgs/{}/repos'.format(organization)
+        repos = get_github_list(list_url, progress_callback=progress_callback)
+        return sorted(repos, key=itemgetter('name'))
+
     def process(self, repo):
         self.progress.item("+ {name}".format(**repo))
         dir = self.repo_dir(repo)
@@ -387,13 +395,9 @@ def main():
                                      expire_after=300)
 
     with Progress() as progress:
-        progress.status('Fetching list of {} repositories from GitHub...'.format(args.organization))
-        def progress_callback(n):
-            progress.status('Fetching list of {} repositories from GitHub... ({})'.format(args.organization, n))
-        list_url = 'https://api.github.com/orgs/{}/repos'.format(args.organization)
-        repos = sorted(get_github_list(list_url, progress_callback=progress_callback), key=itemgetter('name'))
-        progress.set_limit(len(repos))
         wrangler = RepoWrangler(dry_run=args.dry_run, verbose=args.verbose, progress=progress)
+        repos = wrangler.list_repos(args.organization)
+        progress.set_limit(len(repos))
         for repo in repos:
             if args.start_from and repo['name'] < args.start_from:
                 continue
