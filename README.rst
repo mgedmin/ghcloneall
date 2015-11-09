@@ -12,12 +12,12 @@ Usage::
 
 Example output:
 
-.. image:: https://asciinema.org/a/29580.png
+.. image:: https://asciinema.org/a/29651.png
    :alt: asciicast
    :width: 582
    :height: 380
    :align: center
-   :target: https://asciinema.org/a/29580
+   :target: https://asciinema.org/a/29651
 
 What it does:
 
@@ -37,16 +37,18 @@ You can speed up the checks for local unpublished changes by running
 
 Other command-line options::
 
-    $ ./cloneall.py --help
-    usage: cloneall.py [-h] [--version] [-n] [-v] [--start-from REPO]
-                       [--organization ORGANIZATION] [--http-cache DBNAME]
-                       [--no-http-cache]
+    $ ./clone_all_zf_repos.py --help
+    usage: clone_all_zf_repos.py [-h] [--version] [-c CONCURRENCY] [-n] [-v]
+                                 [--start-from REPO] [--organization ORGANIZATION]
+                                 [--http-cache DBNAME] [--no-http-cache]
 
     Clone/update all organization repositories from GitHub
 
     optional arguments:
       -h, --help            show this help message and exit
       --version             show program's version number and exit
+      -c CONCURRENCY, --concurrency CONCURRENCY
+                            set concurrency level
       -n, --dry-run         don't pull/clone, just print what would be done
       -v, --verbose         perform additional checks
       --start-from REPO     skip all repositories that come before REPO
@@ -66,5 +68,5 @@ For best results configure SSH persistence, to speed up git pulls -- in your
     ControlPersist yes
     ControlPath ~/.ssh/control-%r@%h-%p
 
-It takes about 3 minutes to run git pull on all 339 zopefoundation repos on my
+It takes about 1 minute to run git pull on all 339 zopefoundation repos on my
 laptop.
