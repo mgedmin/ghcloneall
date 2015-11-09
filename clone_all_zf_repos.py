@@ -161,6 +161,14 @@ class Progress(object):
         """Print some extra information about an error."""
         self.extra_info(msg, color=self.t_red, reset=self.t_reset)
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        self.clear()
+        if exc_type is KeyboardInterrupt:
+            print('Interrupted', file=self.stream)
+
 
 class RepoWrangler(object):
 
@@ -367,21 +375,21 @@ def main():
                                      backend='sqlite',
                                      expire_after=300)
 
-    progress = Progress()
-    progress.status('Fetching list of {} repositories from GitHub...'.format(args.organization))
-    def progress_callback(n):
-        progress.status('Fetching list of {} repositories from GitHub... ({})'.format(args.organization, n))
-    list_url = 'https://api.github.com/orgs/{}/repos'.format(args.organization)
-    repos = sorted(get_github_list(list_url, progress_callback=progress_callback), key=itemgetter('name'))
-    progress.clear()
-    progress.set_limit(len(repos))
-    wrangler = RepoWrangler(dry_run=args.dry_run, verbose=args.verbose, progress=progress)
-    for n, repo in enumerate(repos, 1):
-        if args.start_from and repo['name'] < args.start_from:
-            continue
-        wrangler.process(repo)
-    progress.clear()
-    print("{0.n_repos} repositories: {0.n_updated} updated, {0.n_new} new, {0.n_dirty} dirty.".format(wrangler))
+    with Progress() as progress:
+        progress.status('Fetching list of {} repositories from GitHub...'.format(args.organization))
+        def progress_callback(n):
+            progress.status('Fetching list of {} repositories from GitHub... ({})'.format(args.organization, n))
+        list_url = 'https://api.github.com/orgs/{}/repos'.format(args.organization)
+        repos = sorted(get_github_list(list_url, progress_callback=progress_callback), key=itemgetter('name'))
+        progress.clear()
+        progress.set_limit(len(repos))
+        wrangler = RepoWrangler(dry_run=args.dry_run, verbose=args.verbose, progress=progress)
+        for n, repo in enumerate(repos, 1):
+            if args.start_from and repo['name'] < args.start_from:
+                continue
+            wrangler.process(repo)
+        progress.clear()
+        print("{0.n_repos} repositories: {0.n_updated} updated, {0.n_new} new, {0.n_dirty} dirty.".format(wrangler))
 
 
 if __name__ == '__main__':
