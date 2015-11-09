@@ -79,6 +79,7 @@ class Progress(object):
     - item(text) shows an item and updates the progress bar
     - update(extra_text) updates the last item (and highlights it in a
       different color)
+    - finish(msg) clear the progress bar/status message and print a summary
 
     """
     stream = sys.stdout
@@ -108,6 +109,16 @@ class Progress(object):
             self.stream.write('\r{}\r'.format(' ' * len(self.last_message.rstrip())))
             self.stream.flush()
             self.last_message = ''
+
+    def finish(self, msg=''):
+        """Clear the status message and print a summary.
+
+        Differs from status(msg) in that it leaves the cursor on a new line
+        and cannot be cleared.
+        """
+        self.clear()
+        if msg:
+            print(msg, file=self.stream)
 
     def progress(self):
         self.status(self.message(self.cur, self.total))
@@ -389,7 +400,7 @@ def main():
                 continue
             wrangler.process(repo)
         progress.clear()
-        print("{0.n_repos} repositories: {0.n_updated} updated, {0.n_new} new, {0.n_dirty} dirty.".format(wrangler))
+        progress.finish("{0.n_repos} repositories: {0.n_updated} updated, {0.n_new} new, {0.n_dirty} dirty.".format(wrangler))
 
 
 if __name__ == '__main__':
