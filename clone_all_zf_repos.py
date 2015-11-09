@@ -86,7 +86,9 @@ class Progress(object):
     progress_bar_format = '[{bar}] {cur}/{total}'
     bar_width = 20
 
-    t_cursor_up = '\033[A'
+    t_cursor_up = '\033[%dA'
+    t_cursor_down = '\033[%dB'
+    t_insert_lines = '\033[%dL'
     t_reset = '\033[m'
     t_green = '\033[32m'
     t_red = '\033[31m'
@@ -159,37 +161,56 @@ class Progress(object):
         return item
 
     def update_item(self, item):
-        lines = sum(i.extra_info_lines + 1 for i in self.items[item.idx:])
+        n = sum(i.height for i in self.items[item.idx:])
         self.stream.write(''.join([
-            self.t_cursor_up * lines,
-            self.t_green,
+            self.t_cursor_up % n,
+            item.color,
             item.msg,
-            self.t_reset,
-            '\n' * lines,
+            item.reset,
+            '\n' * n,
         ]))
         self.stream.flush()
+
+    def extra_info(self, item, lines):
+        n = sum(i.height for i in self.items[item.idx + 1:])
+        if n:
+            self.stream.write(self.t_cursor_up % n)
+        self.stream.write(self.t_insert_lines % len(lines))
+        for indent, color, line, reset in lines:
+            self.stream.write(''.join([indent, color, line, reset, '\n']))
+        for i in self.items[item.idx + 1:]:
+            self.stream.write(''.join([i.color, i.msg, i.reset, '\n']))
+            for indent, color, line, reset in i.extra_info_lines:
+                self.stream.write(''.join([indent, color, line, reset, '\n']))
+        self.progress()
 
     class Item(object):
         def __init__(self, progress, msg, idx):
             self.progress = progress
             self.msg = msg
             self.idx = idx
-            self.extra_info_lines = 0
+            self.extra_info_lines = []
+            self.color = ''
+            self.reset = ''
+
+        @property
+        def height(self):
+            return 1 + len(self.extra_info_lines)
 
         def update(self, msg):
             """Update the last shown item and highlight it."""
+            self.color = self.progress.t_green
+            self.reset = self.progress.t_reset
             self.msg += msg
             self.progress.update_item(self)
 
         def extra_info(self, msg, color='', reset='', indent='    '):
             """Print some extra information."""
-            assert self is self.progress.items[-1]
-            self.progress.clear()
-            for line in msg.splitlines():
-                self.progress.stream.write(''.join([indent, color, line, reset, '\n']))
-                self.extra_info_lines += 1
-            self.progress.stream.flush()
-            self.progress.progress()
+            lines = [(indent, color, line, reset) for line in msg.splitlines()]
+            if not lines:
+                return
+            self.extra_info_lines += lines
+            self.progress.extra_info(self, lines)
 
         def error_info(self, msg):
             """Print some extra information about an error."""
