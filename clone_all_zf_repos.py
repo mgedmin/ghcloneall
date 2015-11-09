@@ -212,9 +212,9 @@ class RepoWrangler(object):
 
     def update(self, repo, dir):
         if not self.dry_run:
-            old_sha = self.check_output(['git', 'describe', '--always', '--dirty'], cwd=dir)
+            old_sha = self.get_current_commit(dir)
             self.call(['git', 'pull', '-q', '--ff-only'], cwd=dir)
-            new_sha = self.check_output(['git', 'describe', '--always', '--dirty'], cwd=dir)
+            new_sha = self.get_current_commit(dir)
             if old_sha != new_sha:
                 self.progress.update(' (updated)')
                 self.n_updated += 1
@@ -266,6 +266,9 @@ class RepoWrangler(object):
 
     def has_local_commits(self, dir):
         return self.check_output(['git', 'rev-list', '@{u}..'], cwd=dir) != ''
+
+    def get_current_commit(self, dir):
+        return self.check_output(['git', 'describe', '--always', '--dirty'], cwd=dir)
 
     def get_current_head(self, dir):
         return self.check_output(['git', 'symbolic-ref', 'HEAD'], cwd=dir).strip()
