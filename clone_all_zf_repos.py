@@ -95,8 +95,7 @@ class Progress(object):
         self.stream = stream
         self.last_status = ''  # so we know how many characters to erase
         self.cur = self.total = 0
-        self.last_item = ''
-        self.extra_info_lines = 0
+        self.items = []
 
     def status(self, message):
         """Replace the status message."""
@@ -150,33 +149,46 @@ class Progress(object):
 
     def item(self, msg=''):
         """Show an item and update the progress bar."""
+        item = self.Item(self, msg, len(self.items))
+        self.items.append(item)
         if msg:
             self.clear()
             print(msg, file=self.stream)
-        self.last_item = msg
-        self.extra_info_lines = 0
         self.cur += 1
         self.progress()
+        return item
 
-    def update(self, msg, color=t_green):
-        """Update the last shown item and highlight it."""
-        self.last_item += msg
-        print(''.join([self.t_cursor_up * (1 + self.extra_info_lines),
-                       color, self.last_item, self.t_reset,
-                       '\n' * self.extra_info_lines]),
-              file=self.stream)
+    class Item(object):
 
-    def extra_info(self, msg, color='', reset='', indent='    '):
-        """Print some extra information."""
-        self.clear()
-        for line in msg.splitlines():
-            self.stream.write(''.join([indent, color, line, reset, '\n']))
-            self.extra_info_lines += 1
-        self.stream.flush()
+        def __init__(self, progress, msg, idx):
+            self.progress = progress
+            self.msg = msg
+            self.idx = idx
+            self.extra_info_lines = 0
 
-    def error_info(self, msg):
-        """Print some extra information about an error."""
-        self.extra_info(msg, color=self.t_red, reset=self.t_reset)
+        def update(self, msg, color=None):
+            """Update the last shown item and highlight it."""
+            if color is None:
+                color = self.progress.t_green
+            assert self is self.progress.items[-1]
+            self.msg += msg
+            print(''.join([self.progress.t_cursor_up * (1 + self.extra_info_lines),
+                           color, self.msg, self.progress.t_reset,
+                           '\n' * self.extra_info_lines]),
+                  file=self.progress.stream)
+
+        def extra_info(self, msg, color='', reset='', indent='    '):
+            """Print some extra information."""
+            assert self is self.progress.items[-1]
+            self.progress.clear()
+            for line in msg.splitlines():
+                self.progress.stream.write(''.join([indent, color, line, reset, '\n']))
+                self.extra_info_lines += 1
+            self.progress.stream.flush()
+
+        def error_info(self, msg):
+            """Print some extra information about an error."""
+            self.extra_info(msg, color=self.progress.t_red, reset=self.progress.t_reset)
 
     def __enter__(self):
         return self
@@ -198,6 +210,28 @@ class RepoWrangler(object):
         self.verbose = verbose or 0
         self.progress = progress if progress else Progress()
 
+    def list_repos(self, organization):
+        self.progress.status('Fetching list of {} repositories from GitHub...'.format(organization))
+        def progress_callback(n):
+            self.progress.status('Fetching list of {} repositories from GitHub... ({})'.format(organization, n))
+        list_url = 'https://api.github.com/orgs/{}/repos'.format(organization)
+        repos = get_github_list(list_url, progress_callback=progress_callback)
+        return sorted(repos, key=itemgetter('name'))
+
+    def process(self, repo):
+        item = self.progress.item("+ {name}".format(**repo))
+        task = RepoTask(repo, item, self, self)
+        task.run()
+
+
+class RepoTask(object):
+
+    def __init__(self, repo, progress_item, options, counters):
+        self.repo = repo
+        self.progress_item = progress_item
+        self.options = options
+        self.counters = counters
+
     def repo_dir(self, repo):
         return repo['name']
 
@@ -217,7 +251,7 @@ class RepoWrangler(object):
         return head
 
     def pretty_command(self, args):
-        if self.verbose:
+        if self.options.verbose:
             return ' '.join(args)
         else:
             return ' '.join(args[:2])  # 'git diff' etc.
@@ -233,8 +267,8 @@ class RepoWrangler(object):
         output, _ = p.communicate()
         retcode = p.wait()
         if output:
-            self.progress.error_info(self.decode(output))
-            self.progress.error_info('{command} exited with {rc}'.format(command=self.pretty_command(args),
+            self.progress_item.error_info(self.decode(output))
+            self.progress_item.error_info('{command} exited with {rc}'.format(command=self.pretty_command(args),
                                                                          rc=retcode))
         return retcode
 
@@ -252,10 +286,10 @@ class RepoWrangler(object):
         output, _ = p.communicate()
         retcode = p.wait()
         if retcode != 0:
-            self.progress.update(' (failed)')
+            self.progress_item.update(' (failed)')
         if output or retcode != 0:
-            self.progress.error_info(self.decode(output))
-            self.progress.error_info('{command} exited with {rc}'.format(command=self.pretty_command(args),
+            self.progress_item.error_info(self.decode(output))
+            self.progress_item.error_info('{command} exited with {rc}'.format(command=self.pretty_command(args),
                                                                          rc=retcode))
 
     def check_output(self, args, **kwargs):
@@ -272,81 +306,72 @@ class RepoWrangler(object):
         stdout, stderr = p.communicate()
         retcode = p.wait()
         if retcode != 0:
-            self.progress.error_info(self.decode(stderr))
-            self.progress.error_info('{command} exited with {rc}'.format(command=self.pretty_command(args),
+            self.progress_item.error_info(self.decode(stderr))
+            self.progress_item.error_info('{command} exited with {rc}'.format(command=self.pretty_command(args),
                                                                          rc=retcode))
         return self.decode(stdout)
 
-    def list_repos(self, organization):
-        self.progress.status('Fetching list of {} repositories from GitHub...'.format(organization))
-        def progress_callback(n):
-            self.progress.status('Fetching list of {} repositories from GitHub... ({})'.format(organization, n))
-        list_url = 'https://api.github.com/orgs/{}/repos'.format(organization)
-        repos = get_github_list(list_url, progress_callback=progress_callback)
-        return sorted(repos, key=itemgetter('name'))
-
-    def process(self, repo):
-        self.progress.item("+ {name}".format(**repo))
-        dir = self.repo_dir(repo)
+    def run(self):
+        dir = self.repo_dir(self.repo)
         if os.path.exists(dir):
-            self.update(repo, dir)
-            self.verify(repo, dir)
+            self.update(self.repo, dir)
+            self.verify(self.repo, dir)
         else:
-            self.clone(repo, dir)
-        self.n_repos += 1
+            self.clone(self.repo, dir)
+        self.counters.n_repos += 1
 
     def clone(self, repo, dir):
-        if not self.dry_run:
-            self.progress.update(' (new)')
+        if not self.options.dry_run:
+            self.progress_item.update(' (new)')
             url = self.repo_url(repo)
             self.check_call(['git', 'clone', '-q', url])
-        self.n_new += 1
+        self.counters.n_new += 1
 
     def update(self, repo, dir):
-        if not self.dry_run:
+        if not self.options.dry_run:
             old_sha = self.get_current_commit(dir)
             self.check_call(['git', 'pull', '-q', '--ff-only'], cwd=dir)
             new_sha = self.get_current_commit(dir)
             if old_sha != new_sha:
-                self.progress.update(' (updated)')
-                self.n_updated += 1
+                self.progress_item.update(' (updated)')
+                self.counters.n_updated += 1
 
     def verify(self, repo, dir):
         dirty = 0
         if self.has_local_changes(dir):
-            self.progress.update(' (local changes)')
+            self.progress_item.update(' (local changes)')
             dirty = 1
         if self.has_staged_changes(dir):
-            self.progress.update(' (staged changes)')
+            self.progress_item.update(' (staged changes)')
             dirty = 1
         if self.has_local_commits(dir):
-            self.progress.update(' (local commits)')
+            self.progress_item.update(' (local commits)')
             dirty = 1
         branch = self.get_current_branch(dir)
         if branch != 'master':
-            self.progress.update(' (not on master)')
-            if self.verbose >= 2:
-                self.progress.extra_info('branch: {}'.format(branch))
+            self.progress_item.update(' (not on master)')
+            if self.options.verbose >= 2:
+                self.progress_item.extra_info('branch: {}'.format(branch))
             dirty = 1
-        if self.verbose:
+        if self.options.verbose:
             remote_url = self.get_remote_url(dir)
             if remote_url != repo['ssh_url'] and remote_url + '.git' != repo['ssh_url']:
-                self.progress.update(' (wrong remote url)')
-                if self.verbose >= 2:
-                    self.progress.extra_info('remote: {}'.format(remote_url))
+                self.progress_item.update(' (wrong remote url)')
+                if self.options.verbose >= 2:
+                    self.progress_item.extra_info('remote: {}'.format(remote_url))
                 dirty = 1
-        if self.verbose:
+        if self.options.verbose:
             unknown_files = self.get_unknown_files(dir)
             if unknown_files:
-                self.progress.update(' (unknown files)')
-                if self.verbose >= 2:
+                self.progress_item.update(' (unknown files)')
+                if self.options.verbose >= 2:
                     for n, fn in enumerate(unknown_files):
-                        if self.verbose < 3 and n == 10:
-                            self.progress.extra_info('(and %d more)' % (len(files) - n))
+                        if self.options.verbose < 3 and n == 10:
+                            self.progress_item.extra_info('(and %d more)' % (len(files) - n))
                             break
-                        self.progress.extra_info(fn)
+                        self.progress_item.extra_info(fn)
                 dirty = 1
-        self.n_dirty += dirty
+        self.counters.n_dirty += dirty
 
     def has_local_changes(self, dir):
         # command borrowed from /usr/lib/git-core/git-sh-prompt
