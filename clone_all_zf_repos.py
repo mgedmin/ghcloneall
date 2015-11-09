@@ -392,14 +392,12 @@ def main():
             progress.status('Fetching list of {} repositories from GitHub... ({})'.format(args.organization, n))
         list_url = 'https://api.github.com/orgs/{}/repos'.format(args.organization)
         repos = sorted(get_github_list(list_url, progress_callback=progress_callback), key=itemgetter('name'))
-        progress.clear()
         progress.set_limit(len(repos))
         wrangler = RepoWrangler(dry_run=args.dry_run, verbose=args.verbose, progress=progress)
         for repo in repos:
             if args.start_from and repo['name'] < args.start_from:
                 continue
             wrangler.process(repo)
-        progress.clear()
         progress.finish("{0.n_repos} repositories: {0.n_updated} updated, {0.n_new} new, {0.n_dirty} dirty.".format(wrangler))
 
 
