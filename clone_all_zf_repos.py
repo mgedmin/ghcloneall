@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import argparse
+import concurrent.futures
 import json
 import os
 import subprocess
@@ -460,19 +461,21 @@ class SequentialJobQueue(object):
 class ConcurrentJobQueue(object):
 
     def __init__(self, concurrency=2):
-        self.jobs = []
+        self.jobs = set()
         self.concurrency = concurrency
+        self.pool = concurrent.futures.ThreadPoolExecutor(max_workers=concurrency)
 
     def add(self, task):
         while len(self.jobs) >= self.concurrency:
-            self.jobs.pop(0).join()
-        t = threading.Thread(target=task.run)
-        t.start()
-        self.jobs.append(t)
+            done, not_done = concurrent.futures.wait(
+                self.jobs, return_when=concurrent.futures.FIRST_COMPLETED)
+            self.jobs.difference_update(done)
+        future = self.pool.submit(task.run)
+        self.jobs.add(future)
 
     def finish(self):
-        while self.jobs:
-            self.jobs.pop(0).join()
+        self.pool.shutdown()
+        self.jobs.clear()
 
 
 def main():
