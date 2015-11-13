@@ -478,6 +478,17 @@ class ConcurrentJobQueue(object):
         self.jobs.clear()
 
 
+def spawn_ssh_control_master():
+    # If the user has 'ControlMaster auto' in their ~/.ssh/config, one of the
+    # git clone/pull commands we initiate will start a control master process
+    # that will never exit, with its stdout/stderr pointing to our pipe, and
+    # our p.communicate() will block forever.  So let's make sure there's a
+    # control master process running before we start git clone/pull processes.
+    # https://github.com/mgedmin/cloneall/issues/1
+    subprocess.Popen(['ssh', '-q', '-fN', '-M', '-o', 'ControlPersist=600',
+                      'git@github.com'])
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Clone/update all organization repositories from GitHub")
@@ -503,6 +514,8 @@ def main():
         requests_cache.install_cache(args.http_cache,
                                      backend='sqlite',
                                      expire_after=300)
+
+    spawn_ssh_control_master()
 
     with Progress() as progress:
         wrangler = RepoWrangler(dry_run=args.dry_run, verbose=args.verbose, progress=progress)
