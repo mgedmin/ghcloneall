@@ -102,6 +102,7 @@ class Progress(object):
     t_reset = '\033[m'
     t_green = '\033[32m'
     t_red = '\033[31m'
+    t_brown = '\033[33m'
 
     def __init__(self, stream=sys.stdout):
         self.stream = stream
@@ -167,22 +168,26 @@ class Progress(object):
         self.items.append(item)
         if msg:
             self.clear()
-            print(msg, file=self.stream)
+            self.draw_item(item)
         self.cur += 1
         self.progress()
         return item
 
-    @synchronized
-    def update_item(self, item):
-        n = sum(i.height for i in self.items[item.idx:])
+    def draw_item(self, item, prefix='', suffix='\n', flush=True):
         self.stream.write(''.join([
-            self.t_cursor_up % n,
+            prefix,
             item.color,
             item.msg,
             item.reset,
-            '\n' * n,
+            suffix,
         ]))
-        self.stream.flush()
+        if flush:
+            self.stream.flush()
+
+    @synchronized
+    def update_item(self, item):
+        n = sum(i.height for i in self.items[item.idx:])
+        self.draw_item(item, self.t_cursor_up % n, '\n' * n)
 
     @synchronized
     def extra_info(self, item, lines):
@@ -193,7 +198,7 @@ class Progress(object):
         for indent, color, line, reset in lines:
             self.stream.write(''.join([indent, color, line, reset, '\n']))
         for i in self.items[item.idx + 1:]:
-            self.stream.write(''.join([i.color, i.msg, i.reset, '\n']))
+            self.draw_item(i, flush=False)
             for indent, color, line, reset in i.extra_info_lines:
                 self.stream.write(''.join([indent, color, line, reset, '\n']))
         self.progress()
@@ -204,8 +209,9 @@ class Progress(object):
             self.msg = msg
             self.idx = idx
             self.extra_info_lines = []
-            self.color = ''
-            self.reset = ''
+            self.color = self.progress.t_brown
+            self.reset = self.progress.t_reset
+            self.updated = False
 
         @property
         def height(self):
@@ -213,9 +219,17 @@ class Progress(object):
 
         def update(self, msg):
             """Update the last shown item and highlight it."""
+            self.updated = True
             self.color = self.progress.t_green
             self.reset = self.progress.t_reset
             self.msg += msg
+            self.progress.update_item(self)
+
+        def finished(self):
+            """Mark the item as finished."""
+            if not self.updated:
+                self.color = ''
+                self.reset = ''
             self.progress.update_item(self)
 
         def extra_info(self, msg, color='', reset='', indent='    '):
@@ -369,6 +383,7 @@ class RepoTask(object):
             self.verify(self.repo, dir)
         else:
             self.clone(self.repo, dir)
+        self.progress_item.finished()
         if self.finished_callback:
             self.finished_callback(self)
 
