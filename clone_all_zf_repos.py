@@ -212,22 +212,27 @@ class Progress(object):
             self.color = self.progress.t_brown
             self.reset = self.progress.t_reset
             self.updated = False
+            self.failed = False
 
         @property
         def height(self):
             return 1 + len(self.extra_info_lines)
 
-        def update(self, msg):
+        def update(self, msg, failed=False):
             """Update the last shown item and highlight it."""
             self.updated = True
-            self.color = self.progress.t_green
+            if failed:
+                self.failed = True
+                self.color = self.progress.t_red
+            elif not self.failed:
+                self.color = self.progress.t_green
             self.reset = self.progress.t_reset
             self.msg += msg
             self.progress.update_item(self)
 
         def finished(self):
             """Mark the item as finished."""
-            if not self.updated:
+            if not self.updated and not self.failed:
                 self.color = ''
                 self.reset = ''
             self.progress.update_item(self)
@@ -351,7 +356,7 @@ class RepoTask(object):
         output, _ = p.communicate()
         retcode = p.wait()
         if retcode != 0:
-            self.progress_item.update(' (failed)')
+            self.progress_item.update(' (failed)', failed=True)
         if output or retcode != 0:
             self.progress_item.error_info(self.decode(output))
             self.progress_item.error_info('{command} exited with {rc}'.format(command=self.pretty_command(args),
