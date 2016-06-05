@@ -95,6 +95,8 @@ class Progress(object):
 
     progress_bar_format = '[{bar}] {cur}/{total}'
     bar_width = 20
+    full_char = '#'
+    empty_char = '.'
 
     t_cursor_up = '\033[%dA'
     t_cursor_down = '\033[%dB'
@@ -150,7 +152,7 @@ class Progress(object):
 
     def bar(self, cur, total):
         n = min(self.scale(self.bar_width, cur, total), self.bar_width)
-        return ('=' * n).ljust(self.bar_width)
+        return (self.full_char * n).ljust(self.bar_width, self.empty_char)
 
     def set_limit(self, total):
         """Specify the expected total number of items.
