@@ -409,15 +409,20 @@ class RepoTask(object):
         return self.decode(stdout)
 
     def run(self):
-        dir = self.repo_dir(self.repo)
-        if os.path.exists(dir):
-            self.update(self.repo, dir)
-            self.verify(self.repo, dir)
-        else:
-            self.clone(self.repo, dir)
-        self.progress_item.finished()
-        if self.finished_callback:
-            self.finished_callback(self)
+        try:
+            dir = self.repo_dir(self.repo)
+            if os.path.exists(dir):
+                self.update(self.repo, dir)
+                self.verify(self.repo, dir)
+            else:
+                self.clone(self.repo, dir)
+        except Exception as e:
+            self.progress_item.error_info(
+                '{}: {}'.format(e.__class__.__name__, e))
+        finally:
+            self.progress_item.finished()
+            if self.finished_callback:
+                self.finished_callback(self)
 
     def clone(self, repo, dir):
         self.progress_item.update(' (new)')
