@@ -1,7 +1,11 @@
 #!/usr/bin/python3
+"""
+Clone all Git repositories for a GitHub user or organisation.
+"""
 
 import argparse
 import concurrent.futures
+import fnmatch
 import os
 import subprocess
 import sys
@@ -18,7 +22,11 @@ __url__ = 'https://github.com/mgedmin/cloneall'
 __version__ = '1.4.dev0'
 
 
+# Only one of the following two can be set
 DEFAULT_ORGANIZATION = 'ZopeFoundation'
+DEFAULT_USER = None
+
+DEFAULT_PATTERN = '*'
 
 
 class Error(Exception):
@@ -271,19 +279,27 @@ class RepoWrangler(object):
         self.progress = progress if progress else Progress()
         self.lock = threading.Lock()
 
-    def list_repos(self, organization):
-        self.progress.status(
-            'Fetching list of {} repositories from GitHub...'.format(
-                organization))
+    def list_repos(self, *, user=None, organization=None, pattern='*'):
+        if organization and not user:
+            owner = organization
+            list_url = 'https://api.github.com/orgs/{}/repos'.format(owner)
+        elif user and not organization:
+            owner = user
+            list_url = 'https://api.github.com/users/{}/repos'.format(owner)
+        else:
+            raise ValueError('specify either user or organization, not both')
+
+        message = "Fetching list of {}'s repositories from GitHub...".format(
+            owner)
+        self.progress.status(message)
 
         def progress_callback(n):
-            self.progress.status(
-                'Fetching list of {} repositories from GitHub... ({})'.format(
-                    organization, n))
+            self.progress.status("{} ({})".format(message, n))
 
-        list_url = 'https://api.github.com/orgs/{}/repos'.format(organization)
         repos = get_github_list(list_url, progress_callback=progress_callback)
-        return sorted(repos, key=itemgetter('name'))
+        return sorted(
+            (r for r in repos if fnmatch.fnmatch(r['name'], pattern)),
+            key=itemgetter('name'))
 
     def process_task(self, repo):
         item = self.progress.item("+ {name}".format(**repo))
@@ -534,7 +550,7 @@ def spawn_ssh_control_master():
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Clone/update all organization repositories from GitHub")
+        description="Clone/update all user/org repositories from GitHub.")
     parser.add_argument(
         '--version', action='version',
         version="%(prog)s version " + __version__)
@@ -551,9 +567,16 @@ def main():
         '--start-from', metavar='REPO',
         help='skip all repositories that come before REPO alphabetically')
     parser.add_argument(
-        '--organization', default=DEFAULT_ORGANIZATION,
+        '--organization',
         help='specify the GitHub organization (default: {})'.format(
             DEFAULT_ORGANIZATION))
+    parser.add_argument(
+        '--user',
+        help='specify the GitHub user (default: {})'.format(DEFAULT_USER))
+    parser.add_argument(
+        '--pattern', default=DEFAULT_PATTERN,
+        help='specify repository name pattern (default: {})'.format(
+            DEFAULT_PATTERN))
     parser.add_argument(
         '--http-cache', default='.httpcache', metavar='DBNAME',
         # .sqlite will be appended automatically
@@ -563,6 +586,13 @@ def main():
         '--no-http-cache', action='store_false', dest='http_cache',
         help='disable HTTP disk caching')
     args = parser.parse_args()
+    if args.user and args.organization:
+        parser.error(
+            "Please specify either --user or --organization, but not both.")
+    if not args.user and not args.organization:
+        args.user = DEFAULT_USER
+        args.organization = DEFAULT_ORGANIZATION
+
     if args.http_cache:
         requests_cache.install_cache(args.http_cache,
                                      backend='sqlite',
@@ -573,7 +603,10 @@ def main():
     with Progress() as progress:
         wrangler = RepoWrangler(dry_run=args.dry_run, verbose=args.verbose,
                                 progress=progress)
-        repos = wrangler.list_repos(args.organization)
+        repos = wrangler.list_repos(
+            organization=args.organization,
+            user=args.user,
+            pattern=args.pattern)
         progress.set_limit(len(repos))
         if args.concurrency < 2:
             queue = SequentialJobQueue()
