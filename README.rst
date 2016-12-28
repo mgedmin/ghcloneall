@@ -91,7 +91,7 @@ Configuration file
 ------------------
 
 The script looks for ``.cloneallrc`` in the current working directory, which
-should looks like this::
+should look like this::
 
     [cloneall]
     # Provide either github_user or github_org, but not both
@@ -105,7 +105,7 @@ You can create one with ``./cloneall.py --init --{user,org} X [--pattern Y]``.
 Tips
 ----
 
-For best results configure SSH persistence, to speed up git pulls -- in your
+For best results configure SSH persistence to speed up git pulls -- in your
 ``~/.ssh/config``::
 
     Host github.com
