@@ -2,12 +2,10 @@
 
 import argparse
 import concurrent.futures
-import json
 import os
 import subprocess
 import sys
 import threading
-import urllib.request
 from operator import itemgetter
 
 import requests
