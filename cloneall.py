@@ -458,13 +458,17 @@ class RepoTask(object):
             self.dirty = True
         if self.options.verbose:
             remote_url = self.get_remote_url(dir)
-            if repo['ssh_url'] not in (remote_url, remote_url + '.git'):
+            if not remote_url.endswith('.git'):
+                remote_url += '.git'
+            if remote_url not in (repo['ssh_url'], repo['clone_url']):
                 self.progress_item.update(' (wrong remote url)')
                 if self.options.verbose >= 2:
                     self.progress_item.extra_info(
                         'remote: {}'.format(remote_url))
                     self.progress_item.extra_info(
-                        'expected: {}'.format(repo['ssh_url']))
+                        'expected: {ssh_url}'.format_map(repo))
+                    self.progress_item.extra_info(
+                        'alternatively: {clone_url}'.format_map(repo))
                 self.dirty = True
         if self.options.verbose:
             unknown_files = self.get_unknown_files(dir)
