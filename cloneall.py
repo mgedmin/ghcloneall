@@ -280,7 +280,7 @@ class RepoWrangler(object):
         self.progress = progress if progress else Progress()
         self.lock = threading.Lock()
 
-    def list_repos(self, *, user=None, organization=None, pattern='*'):
+    def list_repos(self, *, user=None, organization=None, pattern=None):
         if organization and not user:
             owner = organization
             list_url = 'https://api.github.com/orgs/{}/repos'.format(owner)
@@ -298,9 +298,9 @@ class RepoWrangler(object):
             self.progress.status("{} ({})".format(message, n))
 
         repos = get_github_list(list_url, progress_callback=progress_callback)
-        return sorted(
-            (r for r in repos if fnmatch.fnmatch(r['name'], pattern)),
-            key=itemgetter('name'))
+        if pattern:
+            repos = (r for r in repos if fnmatch.fnmatch(r['name'], pattern))
+        return sorted(repos, key=itemgetter('name'))
 
     def process_task(self, repo):
         item = self.progress.item("+ {name}".format(**repo))
