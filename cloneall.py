@@ -458,6 +458,8 @@ class RepoTask(object):
                 if self.options.verbose >= 2:
                     self.progress_item.extra_info(
                         'remote: {}'.format(remote_url))
+                    self.progress_item.extra_info(
+                        'expected: {}'.format(repo['ssh_url']))
                 self.dirty = True
         if self.options.verbose:
             unknown_files = self.get_unknown_files(dir)
