@@ -11,6 +11,7 @@ import subprocess
 import sys
 import threading
 from operator import itemgetter
+from configparser import ConfigParser
 
 import requests
 import requests_cache
@@ -548,6 +549,17 @@ def spawn_ssh_control_master():
                       'git@github.com'])
 
 
+def read_config_file(filename):
+    config = ConfigParser()
+    config.read([filename])
+    return config
+
+
+def write_config_file(filename, config):
+    with open(filename, 'w') as fp:
+        config.write(fp)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Clone/update all user/org repositories from GitHub.")
@@ -568,15 +580,16 @@ def main():
         help='skip all repositories that come before REPO alphabetically')
     parser.add_argument(
         '--organization',
-        help='specify the GitHub organization (default: {})'.format(
-            DEFAULT_ORGANIZATION))
+        help='specify the GitHub organization')
     parser.add_argument(
         '--user',
-        help='specify the GitHub user (default: {})'.format(DEFAULT_USER))
+        help='specify the GitHub user')
     parser.add_argument(
-        '--pattern', default=DEFAULT_PATTERN,
-        help='specify repository name pattern (default: {})'.format(
-            DEFAULT_PATTERN))
+        '--pattern',
+        help='specify repository name pattern to filter')
+    parser.add_argument(
+        '--init', action='store_true',
+        help='create a .cloneallrc from command-line arguments')
     parser.add_argument(
         '--http-cache', default='.httpcache', metavar='DBNAME',
         # .sqlite will be appended automatically
@@ -586,12 +599,33 @@ def main():
         '--no-http-cache', action='store_false', dest='http_cache',
         help='disable HTTP disk caching')
     args = parser.parse_args()
+
+    config = read_config_file('.cloneallrc')
+    if not args.user and not args.organization:
+        args.user = config.get('cloneall', 'github_user', fallback=None)
+        args.organization = config.get('cloneall', 'github_org', fallback=None)
+    if not args.pattern:
+        args.pattern = config.get('cloneall', 'pattern', fallback=None)
+
     if args.user and args.organization:
         parser.error(
             "Please specify either --user or --organization, but not both.")
     if not args.user and not args.organization:
-        args.user = DEFAULT_USER
-        args.organization = DEFAULT_ORGANIZATION
+        parser.error(
+            "Please specify either --user or --organization")
+
+    if args.init:
+        config.remove_section('cloneall')
+        config.add_section('cloneall')
+        if args.user:
+            config.set('cloneall', 'github_user', args.user)
+        if args.organization:
+            config.set('cloneall', 'github_org', args.organization)
+        if args.pattern:
+            config.set('cloneall', 'pattern', args.pattern)
+        write_config_file('.cloneallrc', config)
+        print("Wrote .cloneallrc")
+        return
 
     if args.http_cache:
         requests_cache.install_cache(args.http_cache,

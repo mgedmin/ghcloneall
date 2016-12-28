@@ -1,17 +1,11 @@
-Script to clone/update all repos for a user/organization from GitHub.
+cloneall
+========
+
+It's a script to clone/update all repos for a user/organization from GitHub.
 
 Target audience: maintainers of large collections of projects (for example,
 ZopeFoundation members).
 
-Usage::
-
-    git clone https://github.com/mgedmin/cloneall ~/src/cloneall
-    mkdir ~/src/zf
-    cd ~/src/zf
-    ln -s ~/src/cloneall/cloneall.py cloneall.py
-    ./cloneall.py --org ZopeFoundation
-
-Example output:
 
 .. image:: https://asciinema.org/a/29651.png
    :alt: asciicast
@@ -20,11 +14,29 @@ Example output:
    :align: center
    :target: https://asciinema.org/a/29651
 
-Another example::
 
-   mkdir ~/src/vim-plugins
-   cd ~/src/vim-plugins
-   cloneall.py --user mgedmin --pattern '*.vim'
+Usage
+-----
+
+Clone all ZopeFoundation repositories::
+
+    mkdir ~/src/zf
+    cd ~/src/zf
+    wget https://github.com/mgedmin/cloneall/blob/master/cloneall.py
+    ./cloneall.py --init --org ZopeFoundation
+    ./cloneall.py
+
+Clone all mgedmin's vim plugins::
+
+    mkdir ~/src/vim-plugins
+    cd ~/src/vim-plugins
+    wget https://github.com/mgedmin/cloneall/blob/master/cloneall.py
+    cloneall.py --init --user mgedmin --pattern '*.vim'
+    ./cloneall.py
+
+
+Details
+-------
 
 What it does:
 
@@ -42,13 +54,17 @@ What it does:
 You can speed up the checks for local unpublished changes by running
 ``./cloneall.py -n``: this will skip the ``git pull``/``git clone``.
 
+
+Synopsis
+--------
+
 Other command-line options::
 
     $ ./cloneall.py --help
     usage: cloneall.py [-h] [--version] [-c CONCURRENCY] [-n] [-v]
                        [--start-from REPO] [--organization ORGANIZATION]
-                       [--user USER] [--pattern PATTERN] [--http-cache DBNAME]
-                       [--no-http-cache]
+                       [--user USER] [--pattern PATTERN] [--init]
+                       [--http-cache DBNAME] [--no-http-cache]
 
     Clone/update all user/org repositories from GitHub.
 
@@ -62,13 +78,32 @@ Other command-line options::
       --start-from REPO     skip all repositories that come before REPO
                             alphabetically
       --organization ORGANIZATION
-                            specify the GitHub organization (default:
-                            ZopeFoundation)
-      --user USER           specify the GitHub user (default: None)
-      --pattern PATTERN     specify repository name pattern (default: *)
+                            specify the GitHub organization
+      --user USER           specify the GitHub user
+      --pattern PATTERN     specify repository name pattern to filter
+      --init                create a .cloneallrc from command-line arguments
       --http-cache DBNAME   cache HTTP requests on disk in an sqlite database
                             (default: .httpcache)
       --no-http-cache       disable HTTP disk caching
+
+
+Configuration file
+------------------
+
+The script looks for ``.cloneallrc`` in the current working directory, which
+should looks like this::
+
+    [cloneall]
+    # Provide either github_user or github_org, but not both
+    # github_org = ZopeFoundation
+    github_user = mgedmin
+    pattern = *.vim
+
+You can create one with ``./cloneall.py --init --{user,org} X [--pattern Y]``.
+
+
+Tips
+----
 
 For best results configure SSH persistence, to speed up git pulls -- in your
 ``~/.ssh/config``::
@@ -79,4 +114,4 @@ For best results configure SSH persistence, to speed up git pulls -- in your
     ControlPath ~/.ssh/control-%r@%h-%p
 
 It takes about 1 minute to run ``git pull`` on all 339 ZopeFoundation
-repos on my laptop.
+repos on my laptop with this kind of setup.
