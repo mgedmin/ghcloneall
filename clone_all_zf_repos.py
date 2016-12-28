@@ -70,7 +70,6 @@ def synchronized(method):
     return wrapper
 
 
-
 class Progress(object):
     """A progress bar.
 
@@ -124,7 +123,8 @@ class Progress(object):
     def clear(self):
         """Clear the status message."""
         if self.last_status:
-            self.stream.write('\r{}\r'.format(' ' * len(self.last_status.rstrip())))
+            self.stream.write(
+                '\r{}\r'.format(' ' * len(self.last_status.rstrip())))
             self.stream.flush()
             self.last_status = ''
 
@@ -247,7 +247,8 @@ class Progress(object):
 
         def error_info(self, msg):
             """Print some extra information about an error."""
-            self.extra_info(msg, color=self.progress.t_red, reset=self.progress.t_reset)
+            self.extra_info(msg, color=self.progress.t_red,
+                            reset=self.progress.t_reset)
 
     def __enter__(self):
         return self
@@ -271,9 +272,15 @@ class RepoWrangler(object):
         self.lock = threading.Lock()
 
     def list_repos(self, organization):
-        self.progress.status('Fetching list of {} repositories from GitHub...'.format(organization))
+        self.progress.status(
+            'Fetching list of {} repositories from GitHub...'.format(
+                organization))
+
         def progress_callback(n):
-            self.progress.status('Fetching list of {} repositories from GitHub... ({})'.format(organization, n))
+            self.progress.status(
+                'Fetching list of {} repositories from GitHub... ({})'.format(
+                    organization, n))
+
         list_url = 'https://api.github.com/orgs/{}/repos'.format(organization)
         repos = get_github_list(list_url, progress_callback=progress_callback)
         return sorted(repos, key=itemgetter('name'))
@@ -338,8 +345,9 @@ class RepoTask(object):
         retcode = p.wait()
         if output:
             self.progress_item.error_info(self.decode(output))
-            self.progress_item.error_info('{command} exited with {rc}'.format(command=self.pretty_command(args),
-                                                                         rc=retcode))
+            self.progress_item.error_info(
+                '{command} exited with {rc}'.format(
+                    command=self.pretty_command(args), rc=retcode))
         return retcode
 
     def check_call(self, args, **kwargs):
@@ -359,8 +367,9 @@ class RepoTask(object):
             self.progress_item.update(' (failed)', failed=True)
         if output or retcode != 0:
             self.progress_item.error_info(self.decode(output))
-            self.progress_item.error_info('{command} exited with {rc}'.format(command=self.pretty_command(args),
-                                                                         rc=retcode))
+            self.progress_item.error_info(
+                '{command} exited with {rc}'.format(
+                    command=self.pretty_command(args), rc=retcode))
 
     def check_output(self, args, **kwargs):
         """Call a subprocess and return its standard output code.
@@ -377,8 +386,9 @@ class RepoTask(object):
         retcode = p.wait()
         if retcode != 0:
             self.progress_item.error_info(self.decode(stderr))
-            self.progress_item.error_info('{command} exited with {rc}'.format(command=self.pretty_command(args),
-                                                                         rc=retcode))
+            self.progress_item.error_info(
+                '{command} exited with {rc}'.format(
+                    command=self.pretty_command(args), rc=retcode))
         return self.decode(stdout)
 
     def run(self):
@@ -426,10 +436,11 @@ class RepoTask(object):
             self.dirty = True
         if self.options.verbose:
             remote_url = self.get_remote_url(dir)
-            if remote_url != repo['ssh_url'] and remote_url + '.git' != repo['ssh_url']:
+            if repo['ssh_url'] not in (remote_url, remote_url + '.git'):
                 self.progress_item.update(' (wrong remote url)')
                 if self.options.verbose >= 2:
-                    self.progress_item.extra_info('remote: {}'.format(remote_url))
+                    self.progress_item.extra_info(
+                        'remote: {}'.format(remote_url))
                 self.dirty = True
         if self.options.verbose:
             unknown_files = self.get_unknown_files(dir)
@@ -437,36 +448,47 @@ class RepoTask(object):
                 self.progress_item.update(' (unknown files)')
                 if self.options.verbose >= 2:
                     if self.options.verbose < 3 and len(unknown_files) > 10:
-                        unknown_files[10:] = ['(and %d more)' % (len(unknown_files) - 10)]
+                        unknown_files[10:] = [
+                            '(and %d more)' % (len(unknown_files) - 10),
+                        ]
                     self.progress_item.extra_info('\n'.join(unknown_files))
                 self.dirty = True
 
     def has_local_changes(self, dir):
         # command borrowed from /usr/lib/git-core/git-sh-prompt
-        return self.call(['git', 'diff', '--no-ext-diff', '--quiet', '--exit-code'], cwd=dir) != 0
+        return self.call(
+            ['git', 'diff', '--no-ext-diff', '--quiet', '--exit-code'],
+            cwd=dir) != 0
 
     def has_staged_changes(self, dir):
         # command borrowed from /usr/lib/git-core/git-sh-prompt
-        return self.call(['git', 'diff-index', '--cached', '--quiet', 'HEAD', '--'], cwd=dir) != 0
+        return self.call(
+            ['git', 'diff-index', '--cached', '--quiet', 'HEAD', '--'],
+            cwd=dir) != 0
 
     def has_local_commits(self, dir):
         return self.check_output(['git', 'rev-list', '@{u}..'], cwd=dir) != ''
 
     def get_current_commit(self, dir):
-        return self.check_output(['git', 'describe', '--always', '--dirty'], cwd=dir)
+        return self.check_output(
+            ['git', 'describe', '--always', '--dirty'], cwd=dir)
 
     def get_current_head(self, dir):
-        return self.check_output(['git', 'symbolic-ref', 'HEAD'], cwd=dir).strip()
+        return self.check_output(
+            ['git', 'symbolic-ref', 'HEAD'], cwd=dir).strip()
 
     def get_current_branch(self, dir):
         return self.branch_name(self.get_current_head(dir))
 
     def get_remote_url(self, dir):
-        return self.check_output(['git', 'ls-remote', '--get-url'], cwd=dir).strip()
+        return self.check_output(
+            ['git', 'ls-remote', '--get-url'], cwd=dir).strip()
 
     def get_unknown_files(self, dir):
         # command borrowed from /usr/lib/git-core/git-sh-prompt
-        return self.check_output(['git', 'ls-files', '--others', '--exclude-standard', '--', ':/*'], cwd=dir).splitlines()
+        return self.check_output(
+            ['git', 'ls-files', '--others', '--exclude-standard', '--', ':/*'],
+            cwd=dir).splitlines()
 
 
 class SequentialJobQueue(object):
@@ -483,7 +505,8 @@ class ConcurrentJobQueue(object):
     def __init__(self, concurrency=2):
         self.jobs = set()
         self.concurrency = concurrency
-        self.pool = concurrent.futures.ThreadPoolExecutor(max_workers=concurrency)
+        self.pool = concurrent.futures.ThreadPoolExecutor(
+            max_workers=concurrency)
 
     def add(self, task):
         while len(self.jobs) >= self.concurrency:
@@ -512,23 +535,33 @@ def spawn_ssh_control_master():
 def main():
     parser = argparse.ArgumentParser(
         description="Clone/update all organization repositories from GitHub")
-    parser.add_argument('--version', action='version',
-                        version="%(prog)s version " + __version__)
-    parser.add_argument('-c', '--concurrency', type=int, default=4,
-                        help="set concurrency level")
-    parser.add_argument('-n', '--dry-run', action='store_true',
-                        help="don't pull/clone, just print what would be done")
-    parser.add_argument('-v', '--verbose', action='count',
-                        help="perform additional checks")
-    parser.add_argument('--start-from', metavar='REPO',
-                        help='skip all repositories that come before REPO alphabetically')
-    parser.add_argument('--organization', default=DEFAULT_ORGANIZATION,
-                        help='specify the GitHub organization (default: %s)' % DEFAULT_ORGANIZATION)
-    parser.add_argument('--http-cache', default='.httpcache', metavar='DBNAME',
-                        # .sqlite will be appended automatically
-                        help='cache HTTP requests on disk in an sqlite database (default: .httpcache)')
-    parser.add_argument('--no-http-cache', action='store_false', dest='http_cache',
-                        help='disable HTTP disk caching')
+    parser.add_argument(
+        '--version', action='version',
+        version="%(prog)s version " + __version__)
+    parser.add_argument(
+        '-c', '--concurrency', type=int, default=4,
+        help="set concurrency level")
+    parser.add_argument(
+        '-n', '--dry-run', action='store_true',
+        help="don't pull/clone, just print what would be done")
+    parser.add_argument(
+        '-v', '--verbose', action='count',
+        help="perform additional checks")
+    parser.add_argument(
+        '--start-from', metavar='REPO',
+        help='skip all repositories that come before REPO alphabetically')
+    parser.add_argument(
+        '--organization', default=DEFAULT_ORGANIZATION,
+        help='specify the GitHub organization (default: {})'.format(
+            DEFAULT_ORGANIZATION))
+    parser.add_argument(
+        '--http-cache', default='.httpcache', metavar='DBNAME',
+        # .sqlite will be appended automatically
+        help='cache HTTP requests on disk in an sqlite database'
+             ' (default: .httpcache)')
+    parser.add_argument(
+        '--no-http-cache', action='store_false', dest='http_cache',
+        help='disable HTTP disk caching')
     args = parser.parse_args()
     if args.http_cache:
         requests_cache.install_cache(args.http_cache,
@@ -538,7 +571,8 @@ def main():
     spawn_ssh_control_master()
 
     with Progress() as progress:
-        wrangler = RepoWrangler(dry_run=args.dry_run, verbose=args.verbose, progress=progress)
+        wrangler = RepoWrangler(dry_run=args.dry_run, verbose=args.verbose,
+                                progress=progress)
         repos = wrangler.list_repos(args.organization)
         progress.set_limit(len(repos))
         if args.concurrency < 2:
@@ -552,7 +586,9 @@ def main():
             task = wrangler.process_task(repo)
             queue.add(task)
         queue.finish()
-        progress.finish("{0.n_repos} repositories: {0.n_updated} updated, {0.n_new} new, {0.n_dirty} dirty.".format(wrangler))
+        progress.finish(
+            "{0.n_repos} repositories: {0.n_updated} updated, {0.n_new} new,"
+            " {0.n_dirty} dirty.".format(wrangler))
 
 
 if __name__ == '__main__':
