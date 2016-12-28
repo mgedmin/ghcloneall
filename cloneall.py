@@ -20,7 +20,7 @@ import requests_cache
 __author__ = 'Marius Gedminas <marius@gedmin.as>'
 __licence__ = 'MIT'
 __url__ = 'https://github.com/mgedmin/cloneall'
-__version__ = '1.4.dev0'
+__version__ = '1.4'
 
 
 # Only one of the following two can be set

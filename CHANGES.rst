@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-1.4 (unreleased)
+1.4 (2016-12-28)
 ----------------
 
 - Command line args: --user, --pattern, --init
