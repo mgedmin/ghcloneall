@@ -395,8 +395,8 @@ class RepoTask(object):
             self.finished_callback(self)
 
     def clone(self, repo, dir):
+        self.progress_item.update(' (new)')
         if not self.options.dry_run:
-            self.progress_item.update(' (new)')
             url = self.repo_url(repo)
             self.check_call(['git', 'clone', '-q', url])
         self.new = True
