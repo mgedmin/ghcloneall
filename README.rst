@@ -1,14 +1,15 @@
-Script to clone/update all ZopeFoundation repos from GitHub.
+Script to clone/update all repos for a user/organization from GitHub.
 
-Target audience: ZopeFoundation committers.
+Target audience: maintainers of large collections of projects (for example,
+ZopeFoundation members).
 
 Usage::
 
     git clone https://github.com/mgedmin/cloneall ~/src/cloneall
     mkdir ~/src/zf
     cd ~/src/zf
-    ln -s ~/src/cloneall/clone_all_zf_repos.py cloneall.py
-    ./cloneall.py
+    ln -s ~/src/cloneall/cloneall.py cloneall.py
+    ./cloneall.py --org ZopeFoundation
 
 Example output:
 
@@ -18,6 +19,12 @@ Example output:
    :height: 380
    :align: center
    :target: https://asciinema.org/a/29651
+
+Another example::
+
+   mkdir ~/src/vim-plugins
+   cd ~/src/vim-plugins
+   cloneall.py --user mgedmin --pattern '*.vim'
 
 What it does:
 
@@ -37,12 +44,13 @@ You can speed up the checks for local unpublished changes by running
 
 Other command-line options::
 
-    $ ./clone_all_zf_repos.py --help
-    usage: clone_all_zf_repos.py [-h] [--version] [-c CONCURRENCY] [-n] [-v]
-                                 [--start-from REPO] [--organization ORGANIZATION]
-                                 [--http-cache DBNAME] [--no-http-cache]
+    $ ./cloneall.py --help
+    usage: cloneall.py [-h] [--version] [-c CONCURRENCY] [-n] [-v]
+                       [--start-from REPO] [--organization ORGANIZATION]
+                       [--user USER] [--pattern PATTERN] [--http-cache DBNAME]
+                       [--no-http-cache]
 
-    Clone/update all organization repositories from GitHub
+    Clone/update all user/org repositories from GitHub.
 
     optional arguments:
       -h, --help            show this help message and exit
@@ -56,6 +64,8 @@ Other command-line options::
       --organization ORGANIZATION
                             specify the GitHub organization (default:
                             ZopeFoundation)
+      --user USER           specify the GitHub user (default: None)
+      --pattern PATTERN     specify repository name pattern (default: *)
       --http-cache DBNAME   cache HTTP requests on disk in an sqlite database
                             (default: .httpcache)
       --no-http-cache       disable HTTP disk caching
@@ -68,5 +78,5 @@ For best results configure SSH persistence, to speed up git pulls -- in your
     ControlPersist yes
     ControlPath ~/.ssh/control-%r@%h-%p
 
-It takes about 1 minute to run git pull on all 339 zopefoundation repos on my
-laptop.
+It takes about 1 minute to run ``git pull`` on all 339 ZopeFoundation
+repos on my laptop.
