@@ -31,7 +31,7 @@ Clone all mgedmin's vim plugins::
     mkdir ~/src/vim-plugins
     cd ~/src/vim-plugins
     wget https://github.com/mgedmin/cloneall/blob/master/cloneall.py
-    cloneall.py --init --user mgedmin --pattern '*.vim'
+    ./cloneall.py --init --user mgedmin --pattern '*.vim'
     ./cloneall.py
 
 
