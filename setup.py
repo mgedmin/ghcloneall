@@ -5,7 +5,7 @@ from setuptools import setup
 
 here = os.path.dirname(__file__)
 metadata = {}
-with open(os.path.join(here, 'cloneall.py')) as f:
+with open(os.path.join(here, 'ghcloneall.py')) as f:
     for line in f:
         if line.startswith(('__author__ =',
                             '__licence__ =',
@@ -39,7 +39,7 @@ setup(
         'Programming Language :: Python :: 3.6',
     ],
     license='MIT',
-    py_modules=['cloneall'],
+    py_modules=['ghcloneall'],
     install_requires=[
         'requests',
         'requests_cache',
@@ -51,7 +51,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'ghcloneall = cloneall:main',
+            'ghcloneall = ghcloneall:main',
         ],
     },
 )

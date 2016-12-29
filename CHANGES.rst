@@ -7,6 +7,7 @@ Changelog
 
 - Rename the config file to ``.ghcloneallrc``, and rename the config
   section to ``[ghcloneall]``.
+- Rename ``cloneall.py`` to ``ghcloneall.py``
 
 
 1.5 (2016-12-29)
