@@ -582,7 +582,7 @@ def write_config_file(filename, config):
         config.write(fp)
 
 
-def main():
+def _main():
     parser = argparse.ArgumentParser(
         description="Clone/update all user/org repositories from GitHub.")
     parser.add_argument(
@@ -686,8 +686,12 @@ def main():
             " {0.n_dirty} dirty.".format(wrangler))
 
 
-if __name__ == '__main__':
+def main():
     try:
-        main()
+        _main()
     except KeyboardInterrupt:
         pass
+
+
+if __name__ == '__main__':
+    main()

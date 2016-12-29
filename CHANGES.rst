@@ -12,6 +12,8 @@ Changelog
   - Rename the config file to ``.ghcloneallrc``, and rename the config
     section to ``[ghcloneall]``.
 
+- Don't print tracebacks on ^C (this regressed in 1.5).
+
 
 1.5 (2016-12-29)
 ----------------
