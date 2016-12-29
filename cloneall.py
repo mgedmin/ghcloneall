@@ -40,12 +40,6 @@ __version__ = '1.6.dev0'
 CONFIG_FILE = '.ghcloneallrc'
 CONFIG_SECTION = 'ghcloneall'
 
-# Only one of the following two can be set
-DEFAULT_ORGANIZATION = 'ZopeFoundation'
-DEFAULT_USER = None
-
-DEFAULT_PATTERN = '*'
-
 
 class Error(Exception):
     """An error that is not a bug in this script."""
