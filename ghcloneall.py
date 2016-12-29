@@ -33,7 +33,7 @@ import requests_cache
 
 __author__ = 'Marius Gedminas <marius@gedmin.as>'
 __licence__ = 'MIT'
-__url__ = 'https://github.com/mgedmin/cloneall'
+__url__ = 'https://github.com/mgedmin/ghcloneall'
 __version__ = '1.6.dev0'
 
 
@@ -566,7 +566,7 @@ def spawn_ssh_control_master():
     # that will never exit, with its stdout/stderr pointing to our pipe, and
     # our p.communicate() will block forever.  So let's make sure there's a
     # control master process running before we start git clone/pull processes.
-    # https://github.com/mgedmin/cloneall/issues/1
+    # https://github.com/mgedmin/ghcloneall/issues/1
     subprocess.Popen(['ssh', '-q', '-fN', '-M', '-o', 'ControlPersist=600',
                       'git@github.com'])
 

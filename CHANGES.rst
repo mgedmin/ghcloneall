@@ -5,9 +5,12 @@ Changelog
 1.6 (unreleased)
 ----------------
 
-- Rename the config file to ``.ghcloneallrc``, and rename the config
-  section to ``[ghcloneall]``.
-- Rename ``cloneall.py`` to ``ghcloneall.py``
+- Comprehensive rebranding:
+
+  - Rename the GitHub repository to https://github.com/mgedmin/ghcloneall
+  - Rename ``cloneall.py`` to ``ghcloneall.py``
+  - Rename the config file to ``.ghcloneallrc``, and rename the config
+    section to ``[ghcloneall]``.
 
 
 1.5 (2016-12-29)
