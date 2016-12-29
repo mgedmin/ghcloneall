@@ -5,7 +5,8 @@ Changelog
 1.6 (unreleased)
 ----------------
 
-- Nothing changed yet.
+- Rename the config file to ``.ghcloneallrc``, and rename the config
+  section to ``[ghcloneall]``.
 
 
 1.5 (2016-12-29)

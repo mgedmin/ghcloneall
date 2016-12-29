@@ -37,6 +37,9 @@ __url__ = 'https://github.com/mgedmin/cloneall'
 __version__ = '1.6.dev0'
 
 
+CONFIG_FILE = '.ghcloneallrc'
+CONFIG_SECTION = 'ghcloneall'
+
 # Only one of the following two can be set
 DEFAULT_ORGANIZATION = 'ZopeFoundation'
 DEFAULT_USER = None
@@ -614,7 +617,7 @@ def main():
         help='specify repository name pattern to filter')
     parser.add_argument(
         '--init', action='store_true',
-        help='create a .cloneallrc from command-line arguments')
+        help='create a {} from command-line arguments'.format(CONFIG_FILE))
     parser.add_argument(
         '--http-cache', default='.httpcache', metavar='DBNAME',
         # .sqlite will be appended automatically
@@ -625,12 +628,13 @@ def main():
         help='disable HTTP disk caching')
     args = parser.parse_args()
 
-    config = read_config_file('.cloneallrc')
+    config = read_config_file(CONFIG_FILE)
     if not args.user and not args.organization:
-        args.user = config.get('cloneall', 'github_user', fallback=None)
-        args.organization = config.get('cloneall', 'github_org', fallback=None)
+        args.user = config.get(CONFIG_SECTION, 'github_user', fallback=None)
+        args.organization = config.get(CONFIG_SECTION, 'github_org',
+                                       fallback=None)
     if not args.pattern:
-        args.pattern = config.get('cloneall', 'pattern', fallback=None)
+        args.pattern = config.get(CONFIG_SECTION, 'pattern', fallback=None)
 
     if args.user and args.organization:
         parser.error(
@@ -640,16 +644,21 @@ def main():
             "Please specify either --user or --organization")
 
     if args.init:
-        config.remove_section('cloneall')
-        config.add_section('cloneall')
+        config.remove_section(CONFIG_SECTION)
+        config.add_section(CONFIG_SECTION)
         if args.user:
-            config.set('cloneall', 'github_user', args.user)
+            config.set(CONFIG_SECTION, 'github_user', args.user)
         if args.organization:
-            config.set('cloneall', 'github_org', args.organization)
+            config.set(CONFIG_SECTION, 'github_org', args.organization)
         if args.pattern:
-            config.set('cloneall', 'pattern', args.pattern)
-        write_config_file('.cloneallrc', config)
-        print("Wrote .cloneallrc")
+            config.set(CONFIG_SECTION, 'pattern', args.pattern)
+        if not args.dry_run:
+            write_config_file(CONFIG_FILE, config)
+            print("Wrote {}".format(CONFIG_FILE))
+        else:
+            print(
+                "Did not write {} because --dry-run was specified".format(
+                    CONFIG_FILE))
         return
 
     if args.http_cache:

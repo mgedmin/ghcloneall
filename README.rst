@@ -84,7 +84,7 @@ Other command-line options::
                             specify the GitHub organization
       --user USER           specify the GitHub user
       --pattern PATTERN     specify repository name pattern to filter
-      --init                create a .cloneallrc from command-line arguments
+      --init                create a .ghcloneallrc from command-line arguments
       --http-cache DBNAME   cache HTTP requests on disk in an sqlite database
                             (default: .httpcache)
       --no-http-cache       disable HTTP disk caching
@@ -93,10 +93,10 @@ Other command-line options::
 Configuration file
 ------------------
 
-The script looks for ``.cloneallrc`` in the current working directory, which
+The script looks for ``.ghcloneallrc`` in the current working directory, which
 should look like this::
 
-    [cloneall]
+    [ghcloneall]
     # Provide either github_user or github_org, but not both
     # github_org = ZopeFoundation
     github_user = mgedmin
