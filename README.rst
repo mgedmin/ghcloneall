@@ -1,5 +1,5 @@
-cloneall
-========
+ghcloneall
+==========
 
 It's a script to clone/update all repos for a user/organization from GitHub.
 
@@ -7,32 +7,34 @@ Target audience: maintainers of large collections of projects (for example,
 ZopeFoundation members).
 
 
+Usage examples
+--------------
+
+First ``pip install ghcloneall``.
+
+Clone all mgedmin's vim plugins::
+
+    mkdir ~/src/vim-plugins
+    cd ~/src/vim-plugins
+    ghcloneall --init --user mgedmin --pattern '*.vim'
+    ghcloneall
+
+Clone all ZopeFoundation repositories::
+
+    mkdir ~/src/zf
+    cd ~/src/zf
+    ghcloneall --init --org ZopeFoundation
+    ghcloneall
+
+Here's a screencast of the above (running a slightly older version so the
+script name differs):
+
 .. image:: https://asciinema.org/a/29651.png
    :alt: asciicast
    :width: 582
    :height: 380
    :align: center
    :target: https://asciinema.org/a/29651
-
-
-Usage
------
-
-Clone all ZopeFoundation repositories::
-
-    mkdir ~/src/zf
-    cd ~/src/zf
-    wget https://github.com/mgedmin/cloneall/blob/master/cloneall.py
-    ./cloneall.py --init --org ZopeFoundation
-    ./cloneall.py
-
-Clone all mgedmin's vim plugins::
-
-    mkdir ~/src/vim-plugins
-    cd ~/src/vim-plugins
-    wget https://github.com/mgedmin/cloneall/blob/master/cloneall.py
-    ./cloneall.py --init --user mgedmin --pattern '*.vim'
-    ./cloneall.py
 
 
 Details
@@ -51,8 +53,9 @@ What it does:
   - committed changes that haven't been pushed to master
   - remote URL pointing to an unexpected location (in --verbose mode only)
 
-You can speed up the checks for local unpublished changes by running
-``./cloneall.py -n``: this will skip the ``git pull``/``git clone``.
+You can ask it to not change any files on disk and just look for pending
+changes by running ``ghcloneall --dry-run``.  This will also make the
+check faster!
 
 
 Synopsis
@@ -60,11 +63,11 @@ Synopsis
 
 Other command-line options::
 
-    $ ./cloneall.py --help
-    usage: cloneall.py [-h] [--version] [-c CONCURRENCY] [-n] [-v]
-                       [--start-from REPO] [--organization ORGANIZATION]
-                       [--user USER] [--pattern PATTERN] [--init]
-                       [--http-cache DBNAME] [--no-http-cache]
+    $ ghcloneall --help
+    usage: ghcloneall [-h] [--version] [-c CONCURRENCY] [-n] [-v]
+                      [--start-from REPO] [--organization ORGANIZATION]
+                      [--user USER] [--pattern PATTERN] [--init]
+                      [--http-cache DBNAME] [--no-http-cache]
 
     Clone/update all user/org repositories from GitHub.
 
@@ -99,7 +102,7 @@ should look like this::
     github_user = mgedmin
     pattern = *.vim
 
-You can create one with ``./cloneall.py --init --{user,org} X [--pattern Y]``.
+You can create one with ``ghcloneall --init --{user,org} X [--pattern Y]``.
 
 
 Tips
