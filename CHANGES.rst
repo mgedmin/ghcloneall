@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-1.5 (unreleased)
+1.5 (2016-12-29)
 ----------------
 
 - Released to PyPI as ``ghcloneall``
