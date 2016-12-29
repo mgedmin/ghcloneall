@@ -3,15 +3,29 @@
 Clone all Git repositories for a GitHub user or organisation.
 """
 
+from __future__ import print_function
+
 import argparse
-import concurrent.futures
 import fnmatch
 import os
 import subprocess
 import sys
 import threading
 from operator import itemgetter
-from configparser import ConfigParser
+
+try:
+    # Python 3
+    from configparser import ConfigParser
+except ImportError:
+    # Python 2
+    from ConfigParser import SafeConfigParser as ConfigParser
+
+try:
+    # Python 3
+    from concurrent import futures
+except ImportError:
+    # Python 2 backport
+    import futures
 
 import requests
 import requests_cache
@@ -280,7 +294,7 @@ class RepoWrangler(object):
         self.progress = progress if progress else Progress()
         self.lock = threading.Lock()
 
-    def list_repos(self, *, user=None, organization=None, pattern=None):
+    def list_repos(self, user=None, organization=None, pattern=None):
         if organization and not user:
             owner = organization
             list_url = 'https://api.github.com/orgs/{}/repos'.format(owner)
@@ -533,13 +547,13 @@ class ConcurrentJobQueue(object):
     def __init__(self, concurrency=2):
         self.jobs = set()
         self.concurrency = concurrency
-        self.pool = concurrent.futures.ThreadPoolExecutor(
+        self.pool = futures.ThreadPoolExecutor(
             max_workers=concurrency)
 
     def add(self, task):
         while len(self.jobs) >= self.concurrency:
-            done, not_done = concurrent.futures.wait(
-                self.jobs, return_when=concurrent.futures.FIRST_COMPLETED)
+            done, not_done = futures.wait(
+                self.jobs, return_when=futures.FIRST_COMPLETED)
             self.jobs.difference_update(done)
         future = self.pool.submit(task.run)
         self.jobs.add(future)

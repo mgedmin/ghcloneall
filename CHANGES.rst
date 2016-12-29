@@ -6,6 +6,7 @@ Changelog
 ----------------
 
 - Released to PyPI as ``ghcloneall``
+- Added Python 2.7 support
 
 
 1.4 (2016-12-28)
