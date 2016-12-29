@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-1.6 (unreleased)
+1.6 (2016-12-29)
 ----------------
 
 - Comprehensive rebranding:
