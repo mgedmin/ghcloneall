@@ -2,10 +2,11 @@ Changelog
 =========
 
 
-1.7 (unreleased)
-----------------
+1.6.1 (2018-10-19)
+------------------
 
-- Nothing changed yet.
+- Fix TypeError: get() got an unexpected keyword argument 'fallback' on
+  Python 2.
 
 
 1.6 (2016-12-29)

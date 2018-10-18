@@ -34,7 +34,7 @@ import requests_cache
 __author__ = 'Marius Gedminas <marius@gedmin.as>'
 __licence__ = 'MIT'
 __url__ = 'https://github.com/mgedmin/ghcloneall'
-__version__ = '1.7.dev0'
+__version__ = '1.6.1.dev0'
 
 
 CONFIG_FILE = '.ghcloneallrc'
@@ -624,11 +624,13 @@ def _main():
 
     config = read_config_file(CONFIG_FILE)
     if not args.user and not args.organization:
-        args.user = config.get(CONFIG_SECTION, 'github_user', fallback=None)
-        args.organization = config.get(CONFIG_SECTION, 'github_org',
-                                       fallback=None)
+        if config.has_option(CONFIG_SECTION, 'github_user'):
+            args.user = config.get(CONFIG_SECTION, 'github_user')
+        if config.has_option(CONFIG_SECTION, 'github_org'):
+            args.organization = config.get(CONFIG_SECTION, 'github_org')
     if not args.pattern:
-        args.pattern = config.get(CONFIG_SECTION, 'pattern', fallback=None)
+        if config.has_option(CONFIG_SECTION, 'pattern'):
+            args.pattern = config.get(CONFIG_SECTION, 'pattern')
 
     if args.user and args.organization:
         parser.error(
