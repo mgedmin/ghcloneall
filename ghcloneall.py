@@ -230,7 +230,8 @@ class Progress(object):
         # characters we didn't expect get emitted on screen, so maybe I should
         # tweak terminal modes and disable local echo?  Or at least print
         # spurious \rs every time?
-        self.draw_item(item, self.t_cursor_up % n if n else '', '\n' * n)
+        self.draw_item(item, '\r' + self.t_cursor_up % n if n else '',
+                       '\r' + self.t_cursor_down % n if n else '')
 
     @synchronized
     def delete_item(self, item):
