@@ -34,7 +34,7 @@ import requests_cache
 __author__ = 'Marius Gedminas <marius@gedmin.as>'
 __licence__ = 'MIT'
 __url__ = 'https://github.com/mgedmin/ghcloneall'
-__version__ = '1.6.2.dev0'
+__version__ = '1.7.0.dev0'
 
 
 CONFIG_FILE = '.ghcloneallrc'
@@ -115,13 +115,16 @@ class Progress(object):
     full_char = '#'
     empty_char = '.'
 
-    t_cursor_up = '\033[%dA'
-    t_cursor_down = '\033[%dB'
-    t_insert_lines = '\033[%dL'
-    t_reset = '\033[m'
-    t_green = '\033[32m'
-    t_red = '\033[31m'
-    t_brown = '\033[33m'
+    # XXX should use curses.tigetstr() to get these
+    # and curses.tparm() to specify arguments
+    t_cursor_up = '\033[%dA'     # curses.tigetstr('cuu').replace('%p1', '')
+    t_cursor_down = '\033[%dB'   # curses.tigetstr('cud').replace('%p1', '')
+    t_insert_lines = '\033[%dL'  # curses.tigetstr('il').replace('%p1', '')
+    t_delete_lines = '\033[%dM'  # curses.tigetstr('dl').replace('%p1', '')
+    t_reset = '\033[m'           # curses.tigetstr('sgr0'), maybe overkill
+    t_red = '\033[31m'           # curses.tparm(curses.tigetstr('setaf'), 1)
+    t_green = '\033[32m'         # curses.tparm(curses.tigetstr('setaf'), 2)
+    t_brown = '\033[33m'         # curses.tparm(curses.tigetstr('setaf'), 3)
 
     def __init__(self, stream=sys.stdout):
         self.stream = stream
@@ -194,6 +197,8 @@ class Progress(object):
         return item
 
     def draw_item(self, item, prefix='', suffix='\n', flush=True):
+        if item.hidden:
+            return
         self.stream.write(''.join([
             prefix,
             item.color,
@@ -207,7 +212,19 @@ class Progress(object):
     @synchronized
     def update_item(self, item):
         n = sum(i.height for i in self.items[item.idx:])
-        self.draw_item(item, self.t_cursor_up % n, '\n' * n)
+        # We could use use t_cursor_down % n to come back, but then we'd
+        # also have to emit a \r to return to the first column
+        self.draw_item(item, self.t_cursor_up % n if n else '', '\n' * n)
+
+    @synchronized
+    def delete_item(self, item):
+        n = sum(i.height for i in self.items[item.idx:])
+        self.stream.write(''.join([
+            self.t_cursor_up % (n + 1),
+            self.t_delete_lines % 1,
+            self.t_cursor_down % n if n else '',
+        ]))
+        self.stream.flush()
 
     @synchronized
     def extra_info(self, item, lines):
@@ -217,6 +234,9 @@ class Progress(object):
         self.stream.write(self.t_insert_lines % len(lines))
         for indent, color, line, reset in lines:
             self.stream.write(''.join([indent, color, line, reset, '\n']))
+        # t_insert_lines may push the lines off the bottom of the screen,
+        # so we need to redraw everything below the item we've updated
+        # to be sure it's not gone.
         for i in self.items[item.idx + 1:]:
             self.draw_item(i, flush=False)
             for indent, color, line, reset in i.extra_info_lines:
@@ -233,10 +253,11 @@ class Progress(object):
             self.reset = self.progress.t_reset
             self.updated = False
             self.failed = False
+            self.hidden = False
 
         @property
         def height(self):
-            return 1 + len(self.extra_info_lines)
+            return (0 if self.hidden else 1) + len(self.extra_info_lines)
 
         def update(self, msg, failed=False):
             """Update the last shown item and highlight it."""
@@ -250,12 +271,24 @@ class Progress(object):
             self.msg += msg
             self.progress.update_item(self)
 
-        def finished(self):
+        def hide(self):
+            if not self.hidden:
+                # NB: hidden items retain their extra_info, which can be
+                # confusing, so let's make sure we're not hiding any items with
+                # extra_info.
+                assert not self.extra_info_lines
+                self.hidden = True
+                self.progress.delete_item(self)
+
+        def finished(self, hide=False):
             """Mark the item as finished."""
             if not self.updated and not self.failed:
                 self.color = ''
                 self.reset = ''
-            self.progress.update_item(self)
+            if hide:
+                self.hide()
+            else:
+                self.progress.update_item(self)
 
         def extra_info(self, msg, color='', reset='', indent='    '):
             """Print some extra information."""
@@ -281,13 +314,14 @@ class Progress(object):
 
 class RepoWrangler(object):
 
-    def __init__(self, dry_run=False, verbose=0, progress=None):
+    def __init__(self, dry_run=False, verbose=0, progress=None, quiet=False):
         self.n_repos = 0
         self.n_updated = 0
         self.n_new = 0
         self.n_dirty = 0
         self.dry_run = dry_run
         self.verbose = verbose or 0
+        self.quiet = quiet
         self.progress = progress if progress else Progress()
         self.lock = threading.Lock()
 
@@ -431,6 +465,11 @@ class RepoTask(object):
             self.progress_item.error_info(
                 '{}: {}'.format(e.__class__.__name__, e))
         finally:
+            if (self.options.quiet
+                    and not self.progress_item.updated
+                    and not self.progress_item.failed
+                    and not self.progress_item.extra_info_lines):
+                self.progress_item.hide()
             self.progress_item.finished()
             if self.finished_callback:
                 self.finished_callback(self)
@@ -595,6 +634,9 @@ def _main():
         '-n', '--dry-run', action='store_true',
         help="don't pull/clone, just print what would be done")
     parser.add_argument(
+        '-q', '--quiet', action='store_true',
+        help="terser output")
+    parser.add_argument(
         '-v', '--verbose', action='count',
         help="perform additional checks")
     parser.add_argument(
@@ -666,7 +708,7 @@ def _main():
 
     with Progress() as progress:
         wrangler = RepoWrangler(dry_run=args.dry_run, verbose=args.verbose,
-                                progress=progress)
+                                progress=progress, quiet=args.quiet)
         repos = wrangler.list_repos(
             organization=args.organization,
             user=args.user,
