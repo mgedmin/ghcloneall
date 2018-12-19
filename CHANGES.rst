@@ -2,10 +2,11 @@ Changelog
 =========
 
 
-1.6.2 (unreleased)
+1.7.0 (2018-12-19)
 ------------------
 
-- Nothing changed yet.
+- Command line args: -q, --quiet
+- Fix display corruption on ^C
 
 
 1.6.1 (2018-10-19)

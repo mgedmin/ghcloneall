@@ -26,6 +26,7 @@ setup(
     url=metadata['__url__'],
     description='Clone/update all user/organization GitHub repositories',
     long_description=long_description,
+    keywords='github git clone automation',
     classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Console',
@@ -37,6 +38,7 @@ setup(
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
     ],
     license='MIT',
     py_modules=['ghcloneall'],
@@ -54,4 +56,5 @@ setup(
             'ghcloneall = ghcloneall:main',
         ],
     },
+    zip_safe=False,
 )
