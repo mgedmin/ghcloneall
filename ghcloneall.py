@@ -503,6 +503,12 @@ class RepoTask(object):
             if self.finished_callback:
                 self.finished_callback(self)
 
+    def aborted(self):
+        self.progress_item.update(' (aborted)', failed=True)
+        self.progress_item.finished()
+        if self.finished_callback:
+            self.finished_callback(self)
+
     def clone(self, repo, dir):
         self.progress_item.update(' (new)')
         if not self.options.dry_run:
@@ -606,6 +612,12 @@ class SequentialJobQueue(object):
     def finish(self):
         pass
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        pass
+
 
 class ConcurrentJobQueue(object):
 
@@ -616,16 +628,26 @@ class ConcurrentJobQueue(object):
             max_workers=concurrency)
 
     def add(self, task):
-        while len(self.jobs) >= self.concurrency:
-            done, not_done = futures.wait(
-                self.jobs, return_when=futures.FIRST_COMPLETED)
-            self.jobs.difference_update(done)
-        future = self.pool.submit(task.run)
-        self.jobs.add(future)
+        try:
+            while len(self.jobs) >= self.concurrency:
+                done, not_done = futures.wait(
+                    self.jobs, return_when=futures.FIRST_COMPLETED)
+                self.jobs.difference_update(done)
+            future = self.pool.submit(task.run)
+            self.jobs.add(future)
+        except KeyboardInterrupt:
+            task.aborted()
+            raise
 
     def finish(self):
         self.pool.shutdown()
         self.jobs.clear()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        self.finish()
 
 
 def spawn_ssh_control_master():
@@ -747,13 +769,13 @@ def _main():
             queue = SequentialJobQueue()
         else:
             queue = ConcurrentJobQueue(args.concurrency)
-        for repo in repos:
-            if args.start_from and repo['name'] < args.start_from:
-                progress.item()
-                continue
-            task = wrangler.process_task(repo)
-            queue.add(task)
-        queue.finish()
+        with queue:
+            for repo in repos:
+                if args.start_from and repo['name'] < args.start_from:
+                    progress.item()
+                    continue
+                task = wrangler.process_task(repo)
+                queue.add(task)
         progress.finish(
             "{0.n_repos} repositories: {0.n_updated} updated, {0.n_new} new,"
             " {0.n_dirty} dirty.".format(wrangler))
