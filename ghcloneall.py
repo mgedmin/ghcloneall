@@ -218,6 +218,11 @@ class Progress(object):
 
     @synchronized
     def delete_item(self, item):
+        # NB: have to update item inside the critical section to avoid display
+        # corruption!
+        if item.hidden:
+            return
+        item.hidden = True
         n = sum(i.height for i in self.items[item.idx:])
         self.stream.write(''.join([
             self.t_cursor_up % (n + 1),
@@ -228,6 +233,10 @@ class Progress(object):
 
     @synchronized
     def extra_info(self, item, lines):
+        assert not item.hidden
+        # NB: have to update item inside the critical section to avoid display
+        # corruption!
+        item.extra_info_lines += lines
         n = sum(i.height for i in self.items[item.idx + 1:])
         if n:
             self.stream.write(self.t_cursor_up % n)
@@ -257,28 +266,28 @@ class Progress(object):
 
         @property
         def height(self):
+            # NB: any updates to attributes that affect height have to be
+            # synchronized!
             return (0 if self.hidden else 1) + len(self.extra_info_lines)
 
         def update(self, msg, failed=False):
             """Update the last shown item and highlight it."""
             self.updated = True
+            self.reset = self.progress.t_reset
             if failed:
                 self.failed = True
                 self.color = self.progress.t_red
             elif not self.failed:
                 self.color = self.progress.t_green
-            self.reset = self.progress.t_reset
             self.msg += msg
             self.progress.update_item(self)
 
         def hide(self):
-            if not self.hidden:
-                # NB: hidden items retain their extra_info, which can be
-                # confusing, so let's make sure we're not hiding any items with
-                # extra_info.
-                assert not self.extra_info_lines
-                self.hidden = True
-                self.progress.delete_item(self)
+            # NB: hidden items retain their extra_info, which can be
+            # confusing, so let's make sure we're not hiding any items with
+            # extra_info.
+            assert not self.extra_info_lines
+            self.progress.delete_item(self)
 
         def finished(self, hide=False):
             """Mark the item as finished."""
@@ -295,7 +304,6 @@ class Progress(object):
             lines = [(indent, color, line, reset) for line in msg.splitlines()]
             if not lines:
                 return
-            self.extra_info_lines += lines
             self.progress.extra_info(self, lines)
 
         def error_info(self, msg):
