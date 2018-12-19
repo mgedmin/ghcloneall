@@ -131,8 +131,9 @@ class Progress(object):
         self.last_status = ''  # so we know how many characters to erase
         self.cur = self.total = 0
         self.items = []
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
 
+    @synchronized
     def status(self, message):
         """Replace the status message."""
         self.clear()
@@ -143,6 +144,7 @@ class Progress(object):
             self.stream.flush()
             self.last_status = message
 
+    @synchronized
     def clear(self):
         """Clear the status message."""
         if self.last_status:
@@ -151,6 +153,7 @@ class Progress(object):
             self.stream.flush()
             self.last_status = ''
 
+    @synchronized
     def finish(self, msg=''):
         """Clear the status message and print a summary.
 
@@ -196,6 +199,7 @@ class Progress(object):
         self.progress()
         return item
 
+    @synchronized
     def draw_item(self, item, prefix='', suffix='\n', flush=True):
         if item.hidden:
             return
@@ -317,7 +321,8 @@ class Progress(object):
     def __exit__(self, exc_type, exc_value, exc_tb):
         self.clear()
         if exc_type is KeyboardInterrupt:
-            print('Interrupted', file=self.stream)
+            with self.lock:
+                print('Interrupted', file=self.stream)
 
 
 class RepoWrangler(object):
