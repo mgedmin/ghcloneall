@@ -132,10 +132,13 @@ class Progress(object):
         self.cur = self.total = 0
         self.items = []
         self.lock = threading.RLock()
+        self.finished = False
 
     @synchronized
     def status(self, message):
         """Replace the status message."""
+        if self.finished:
+            return
         self.clear()
         if message:
             self.stream.write('\r')
@@ -147,6 +150,8 @@ class Progress(object):
     @synchronized
     def clear(self):
         """Clear the status message."""
+        if self.finished:
+            return
         if self.last_status:
             self.stream.write(
                 '\r{}\r'.format(' ' * len(self.last_status.rstrip())))
@@ -162,6 +167,7 @@ class Progress(object):
         """
         self.clear()
         if msg:
+            self.finished = True
             print(msg, file=self.stream)
 
     def progress(self):
@@ -201,6 +207,8 @@ class Progress(object):
 
     @synchronized
     def draw_item(self, item, prefix='', suffix='\n', flush=True):
+        if self.finished:
+            return
         if item.hidden:
             return
         self.stream.write(''.join([
@@ -217,11 +225,17 @@ class Progress(object):
     def update_item(self, item):
         n = sum(i.height for i in self.items[item.idx:])
         # We could use use t_cursor_down % n to come back, but then we'd
-        # also have to emit a \r to return to the first column
+        # also have to emit a \r to return to the first column.
+        # NB: when the user starts typing random shit or hits ^C then
+        # characters we didn't expect get emitted on screen, so maybe I should
+        # tweak terminal modes and disable local echo?  Or at least print
+        # spurious \rs every time?
         self.draw_item(item, self.t_cursor_up % n if n else '', '\n' * n)
 
     @synchronized
     def delete_item(self, item):
+        if self.finished:
+            return
         # NB: have to update item inside the critical section to avoid display
         # corruption!
         if item.hidden:
@@ -237,6 +251,8 @@ class Progress(object):
 
     @synchronized
     def extra_info(self, item, lines):
+        if self.finished:
+            return
         assert not item.hidden
         # NB: have to update item inside the critical section to avoid display
         # corruption!
@@ -321,8 +337,7 @@ class Progress(object):
     def __exit__(self, exc_type, exc_value, exc_tb):
         self.clear()
         if exc_type is KeyboardInterrupt:
-            with self.lock:
-                print('Interrupted', file=self.stream)
+            self.finish('Interrupted')
 
 
 class RepoWrangler(object):
