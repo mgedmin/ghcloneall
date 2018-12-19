@@ -64,7 +64,7 @@ Synopsis
 Other command-line options::
 
     $ ghcloneall --help
-    usage: ghcloneall [-h] [--version] [-c CONCURRENCY] [-n] [-v]
+    usage: ghcloneall [-h] [--version] [-c CONCURRENCY] [-n] [-q] [-v]
                       [--start-from REPO] [--organization ORGANIZATION]
                       [--user USER] [--pattern PATTERN] [--init]
                       [--http-cache DBNAME] [--no-http-cache]
@@ -75,8 +75,9 @@ Other command-line options::
       -h, --help            show this help message and exit
       --version             show program's version number and exit
       -c CONCURRENCY, --concurrency CONCURRENCY
-                            set concurrency level
+                            set concurrency level (default: 4)
       -n, --dry-run         don't pull/clone, just print what would be done
+      -q, --quiet           terser output
       -v, --verbose         perform additional checks
       --start-from REPO     skip all repositories that come before REPO
                             alphabetically
@@ -86,7 +87,7 @@ Other command-line options::
       --pattern PATTERN     specify repository name pattern to filter
       --init                create a .ghcloneallrc from command-line arguments
       --http-cache DBNAME   cache HTTP requests on disk in an sqlite database
-                            (default: .httpcache)
+                            for 5 minutes (default: .httpcache)
       --no-http-cache       disable HTTP disk caching
 
 
@@ -116,5 +117,5 @@ For best results configure SSH persistence to speed up git pulls -- in your
     ControlPersist yes
     ControlPath ~/.ssh/control-%r@%h-%p
 
-It takes about 1 minute to run ``git pull`` on all 339 ZopeFoundation
+It takes about 80 seconds to run ``git pull`` on all 382 ZopeFoundation
 repos on my laptop with this kind of setup.

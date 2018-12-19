@@ -680,7 +680,7 @@ def _main():
         version="%(prog)s version " + __version__)
     parser.add_argument(
         '-c', '--concurrency', type=int, default=4,
-        help="set concurrency level")
+        help="set concurrency level (default: %(default)s)")
     parser.add_argument(
         '-n', '--dry-run', action='store_true',
         help="don't pull/clone, just print what would be done")
@@ -708,7 +708,7 @@ def _main():
     parser.add_argument(
         '--http-cache', default='.httpcache', metavar='DBNAME',
         # .sqlite will be appended automatically
-        help='cache HTTP requests on disk in an sqlite database'
+        help='cache HTTP requests on disk in an sqlite database for 5 minutes'
              ' (default: .httpcache)')
     parser.add_argument(
         '--no-http-cache', action='store_false', dest='http_cache',
