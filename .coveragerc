@@ -2,3 +2,8 @@
 source = ghcloneall
 plugins =
     coverage_python_version
+
+[report]
+exclude_lines =
+    pragma: nocover
+    if __name__ == .__main__.:

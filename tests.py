@@ -467,3 +467,8 @@ def test_main_help(monkeypatch, capsys):
     monkeypatch.setattr(sys, 'argv', ['ghcloneall', '--help'])
     with pytest.raises(SystemExit):
         ghcloneall.main()
+
+
+def test_main_keyboard_interrupt(monkeypatch, capsys):
+    monkeypatch.setattr(ghcloneall, '_main', raise_keyboard_interrupt)
+    ghcloneall.main()
