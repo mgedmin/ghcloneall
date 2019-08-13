@@ -166,8 +166,8 @@ class Progress(object):
         and cannot be cleared.
         """
         self.clear()
+        self.finished = True
         if msg:
-            self.finished = True
             print(msg, file=self.stream)
 
     def progress(self):
