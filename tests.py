@@ -14,7 +14,7 @@ import ghcloneall
 
 class MockResponse:
 
-    def __init__(self, status_code=200, *, json=None, headers=()):
+    def __init__(self, status_code=200, json=None, headers=()):
         self.status_code = status_code
         self.headers = {
             'content-type': 'application/json'

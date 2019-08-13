@@ -9,6 +9,7 @@ python:
   - pypy3
 install:
   - pip install pytest coverage coverage-python-version coveralls
+  - pip install -e .
 script:
   - coverage run -m pytest
   - coverage report
