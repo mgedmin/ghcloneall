@@ -412,6 +412,51 @@ def test_Progress_extra_info_not_last_item_redraws_all_below(capsys):
     )
 
 
+class MockTask:
+    def __init__(self, n, output):
+        self.n = n
+        self.output = output
+
+    def run(self):
+        self.output.append(self.n)
+
+    def aborted(self):
+        self.output.append(-self.n)
+
+
+def raise_keyboard_interrupt(*args, **kw):
+    raise KeyboardInterrupt()
+
+
+def test_SequentialJobQueue():
+    jobs = []
+    with ghcloneall.SequentialJobQueue() as queue:
+        queue.add(MockTask(1, jobs))
+        queue.add(MockTask(2, jobs))
+        queue.add(MockTask(3, jobs))
+    assert jobs == [1, 2, 3]
+
+
+def test_ConcurrentJobQueue():
+    done = []
+    with ghcloneall.ConcurrentJobQueue(2) as queue:
+        queue.add(MockTask(1, done))
+        queue.add(MockTask(2, done))
+        queue.add(MockTask(3, done))
+    assert set(done) == {1, 2, 3}
+
+
+def test_ConcurrentJobQueue_can_be_interrupted(monkeypatch):
+    monkeypatch.setattr(ghcloneall.futures, 'wait', raise_keyboard_interrupt)
+    done = []
+    with pytest.raises(KeyboardInterrupt):
+        with ghcloneall.ConcurrentJobQueue(2) as queue:
+            queue.add(MockTask(1, done))
+            queue.add(MockTask(2, done))
+            queue.add(MockTask(3, done))
+    assert set(done) == {1, 2, -3}
+
+
 def test_main_version(monkeypatch, capsys):
     monkeypatch.setattr(sys, 'argv', ['ghcloneall', '--version'])
     with pytest.raises(SystemExit):

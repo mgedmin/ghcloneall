@@ -616,7 +616,7 @@ class SequentialJobQueue(object):
         return self
 
     def __exit__(self, exc_type, exc_value, exc_tb):
-        pass
+        self.finish()
 
 
 class ConcurrentJobQueue(object):
