@@ -1,3 +1,4 @@
 .tox/
 ghcloneall.egg-info/
 *.pyc
+.coverage

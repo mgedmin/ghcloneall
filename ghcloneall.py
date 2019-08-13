@@ -16,14 +16,14 @@ from operator import itemgetter
 try:
     # Python 3
     from configparser import ConfigParser
-except ImportError:
+except ImportError:  # pragma: PY2
     # Python 2
     from ConfigParser import SafeConfigParser as ConfigParser
 
 try:
     # Python 3
     from concurrent import futures
-except ImportError:
+except ImportError:  # pragma: PY2
     # Python 2 backport
     import futures
 
