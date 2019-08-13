@@ -5,7 +5,7 @@ Changelog
 1.7.1 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Drop support for Python 3.3 and 3.4.
 
 
 1.7.0 (2018-12-19)
