@@ -42,7 +42,9 @@ def show_ansi(text):
         '\033': '{esc}',
         '\r': '{cr}',
     }
-    pattern = '|'.join(re.escape(s) for s in replacements)
+    pattern = '|'.join(
+        re.escape(s) for s in sorted(replacements, key=len, reverse=True)
+    )
     return re.sub(pattern, lambda m: replacements[m.group(0)], text)
 
 
