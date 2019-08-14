@@ -13,7 +13,7 @@ install:
 script:
   - coverage run -m pytest
   - flake8 *.py
-  - coverage report --fail-under=100 -m
+  - coverage report -m $([[ $TRAVIS_PYTHON_VERSION != pypy3 ]] && echo --fail-under=100)
 after_success:
   - coveralls
 notifications:
