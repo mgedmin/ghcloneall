@@ -8,11 +8,12 @@ python:
   - pypy
   - pypy3
 install:
-  - pip install pytest coverage coverage-python-version coveralls
+  - pip install pytest coverage coverage-python-version coveralls flake8
   - pip install -e .
 script:
   - coverage run -m pytest
-  - coverage report
+  - flake8 *.py
+  - coverage report --fail-under=100
 after_success:
   - coveralls
 notifications:
