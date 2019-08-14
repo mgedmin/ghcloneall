@@ -126,8 +126,8 @@ class Progress(object):
     t_green = '\033[32m'         # curses.tparm(curses.tigetstr('setaf'), 2)
     t_brown = '\033[33m'         # curses.tparm(curses.tigetstr('setaf'), 3)
 
-    def __init__(self, stream=sys.stdout):
-        self.stream = stream
+    def __init__(self, stream=None):
+        self.stream = sys.stdout if stream is None else stream
         self.last_status = ''  # so we know how many characters to erase
         self.cur = self.total = 0
         self.items = []

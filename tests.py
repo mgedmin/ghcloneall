@@ -10,6 +10,7 @@ except ImportError:  # pragma: PY3
 
 import pytest
 import requests
+import requests_cache
 
 import ghcloneall
 
@@ -49,6 +50,11 @@ def mock_requests_get(monkeypatch):
     mock_get = MockRequestGet()
     monkeypatch.setattr(requests, 'get', mock_get)
     return mock_get
+
+
+@pytest.fixture(autouse=True)
+def mock_requests_cache(monkeypatch):
+    monkeypatch.setattr(requests_cache, 'install_cache', lambda *a, **kw: None)
 
 
 class MockPopen:
@@ -1159,4 +1165,57 @@ def test_main_run_error_handling(monkeypatch, capsys):
         'Failed to fetch'
         ' https://api.github.com/users/mgedmin/repos?per_page=100:\n'
         'not found'
+    )
+
+
+def test_main_run(monkeypatch, mock_requests_get, capsys):
+    monkeypatch.setattr(sys, 'argv', [
+        'ghcloneall', '--user', 'mgedmin', '--concurrency=1',
+    ])
+    mock_requests_get.update(mock_multi_page_api_responses(
+        url='https://api.github.com/users/mgedmin/repos',
+        pages=[
+            [
+                {
+                    'name': 'ghcloneall',
+                    'ssh_url': 'git@github.com:mgedmin/ghcloneall.git',
+                },
+                {
+                    'name': 'xyzzy',
+                    'ssh_url': 'git@github.com:mgedmin/xyzzy.git',
+                },
+            ],
+        ],
+    ))
+    ghcloneall.main()
+    assert show_ansi_result(capsys.readouterr().out) == (
+        '+ ghcloneall (new)\n'
+        '+ xyzzy (new)\n'
+        '2 repositories: 0 updated, 2 new, 0 dirty.'
+    )
+
+
+def test_main_run_start_from(monkeypatch, mock_requests_get, capsys):
+    monkeypatch.setattr(sys, 'argv', [
+        'ghcloneall', '--user', 'mgedmin', '--start-from', 'x',
+    ])
+    mock_requests_get.update(mock_multi_page_api_responses(
+        url='https://api.github.com/users/mgedmin/repos',
+        pages=[
+            [
+                {
+                    'name': 'ghcloneall',
+                    'ssh_url': 'git@github.com:mgedmin/ghcloneall.git',
+                },
+                {
+                    'name': 'xyzzy',
+                    'ssh_url': 'git@github.com:mgedmin/xyzzy.git',
+                },
+            ],
+        ],
+    ))
+    ghcloneall.main()
+    assert show_ansi_result(capsys.readouterr().out) == (
+        '+ xyzzy (new)\n'
+        '1 repositories: 0 updated, 1 new, 0 dirty.'
     )
