@@ -376,7 +376,7 @@ class RepoWrangler(object):
             repos = (r for r in repos if fnmatch.fnmatch(r['name'], pattern))
         return sorted(repos, key=itemgetter('name'))
 
-    def process_task(self, repo):
+    def repo_task(self, repo):
         item = self.progress.item("+ {name}".format(**repo))
         task = RepoTask(repo, item, self, self.task_finished)
         return task
@@ -774,7 +774,7 @@ def _main():
                 if args.start_from and repo['name'] < args.start_from:
                     progress.item()
                     continue
-                task = wrangler.process_task(repo)
+                task = wrangler.repo_task(repo)
                 queue.add(task)
         progress.finish(
             "{0.n_repos} repositories: {0.n_updated} updated, {0.n_new} new,"

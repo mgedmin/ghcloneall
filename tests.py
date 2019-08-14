@@ -1,4 +1,6 @@
+import os
 import re
+import subprocess
 import sys
 
 try:
@@ -47,6 +49,22 @@ def mock_requests_get(monkeypatch):
     mock_get = MockRequestGet()
     monkeypatch.setattr(requests, 'get', mock_get)
     return mock_get
+
+
+class MockPopen:
+    def __init__(self, args, stdout=None, stderr=None):
+        pass
+
+    def communicate(self):
+        return '', ''
+
+    def wait(self):
+        return 0
+
+
+@pytest.fixture(autouse=True)
+def mock_subprocess_Popen(monkeypatch):
+    monkeypatch.setattr(subprocess, 'Popen', MockPopen)
 
 
 def make_page_url(url, page):
@@ -685,6 +703,31 @@ def test_RepoWrangler_list_repos_missing_arguments():
     wrangler = ghcloneall.RepoWrangler()
     with pytest.raises(ValueError):
         wrangler.list_repos()
+
+
+def test_RepoWrangler_repo_task(monkeypatch):
+    monkeypatch.setattr(os.path, 'exists', lambda dir: False)
+    buf = StringIO()
+    progress = ghcloneall.Progress(stream=buf)
+    wrangler = ghcloneall.RepoWrangler(progress=progress)
+    task = wrangler.repo_task({
+        'name': 'xyzzy',
+        'ssh_url': 'git@example.com:test_user/xyzzy.git'
+    })
+    compare(
+        buf.getvalue(),
+        "{brown}+ xyzzy{reset}\n"
+        "{cr}[####################] 1/0{cr}"
+    )
+    task.run()
+    assert show_ansi_result(buf.getvalue()) == (
+        '+ xyzzy (new)\n'
+        "[####################] 1/0"
+    )
+    assert wrangler.n_repos == 1
+    assert wrangler.n_new == 1
+    assert wrangler.n_updated == 0
+    assert wrangler.n_dirty == 0
 
 
 class MockTask:
