@@ -26,6 +26,77 @@ class MockResponse:
         return self._json
 
 
+class Terminal:
+
+    def __init__(self, width=80, height=24):
+        self.rows = [[' ']*width for n in range(height)]
+        self.x = 0
+        self.y = 0
+        self.width = width
+        self.height = height
+
+    def __str__(self):
+        return '\n'.join(''.join(row).rstrip() for row in self.rows).rstrip()
+
+    def print(self, text):
+        for s in re.split(r'(\033\[\d*[a-zA-Z]|.)', text):
+            if s == '\r':
+                self.x = 0
+            elif s == '\n':
+                self.newline()
+            elif len(s) == 1:
+                self.put_char(s)
+            elif s.startswith('\033['):
+                command = s[-1:]
+                param = s[2:-1]
+                if param:
+                    param = int(param)
+                else:
+                    param = 0
+                self.control_seq(command, param)
+
+    def put_char(self, c):
+        self.rows[self.y][self.x] = c
+        self.x += 1
+        if self.x == self.width:
+            self.newline()
+
+    def newline(self):
+        self.x = 0
+        self.y += 1
+        if self.y == self.height:
+            self.y -= 1
+            self.delete_line(0)
+
+    def insert_line(self, y):
+        self.rows.insert(y, [' '] * self.width)
+        del self.rows[-1]
+
+    def delete_line(self, y):
+        del self.rows[y]
+        self.rows.append([' '] * self.width)
+
+    def control_seq(self, command, param):
+        if command == 'A':
+            # move cursor up
+            self.y -= param
+            if self.y < 0:
+                # not 100% sure what real terminals do here
+                self.y = 0
+        elif command == 'B':
+            # move cursor down
+            self.y += param
+            if self.y >= self.height - 1:
+                # not 100% sure what real terminals do here
+                self.y = self.height - 1
+        elif command == 'L':
+            for n in range(param):
+                self.insert_line(self.y)
+        elif command == 'M':
+            for n in range(param):
+                self.delete_line(self.y)
+
+
 def show_ansi(text):
     """Make ANSI control sequences visible."""
     replacements = {
@@ -46,6 +117,12 @@ def show_ansi(text):
         re.escape(s) for s in sorted(replacements, key=len, reverse=True)
     )
     return re.sub(pattern, lambda m: replacements[m.group(0)], text)
+
+
+def show_ansi_result(text):
+    term = Terminal()
+    term.print(text)
+    return str(term)
 
 
 def compare(actual, expected):
@@ -115,6 +192,9 @@ def test_Progress(capsys):
         '\r     \r'
         'bye\n'
     )
+    assert show_ansi_result(buf.getvalue()) == (
+        'bye'
+    )
 
 
 def test_Progress_no_output_after_finish(capsys):
@@ -132,6 +212,7 @@ def test_Progress_no_output_after_finish(capsys):
         '\rhi\r'
         '\r  \r'
     )
+    assert show_ansi_result(buf.getvalue()) == ''
 
 
 def test_Progress_progress(capsys):
@@ -155,6 +236,9 @@ def test_Progress_progress(capsys):
         '\r                          \r'
         '\r[####................] 1/5\r'
     )
+    assert show_ansi_result(buf.getvalue()) == (
+        '[####................] 1/5'
+    )
 
 
 def test_Progress_context_manager(capsys):
@@ -167,6 +251,9 @@ def test_Progress_context_manager(capsys):
         '\r[####################] 1/0\r'
         '\r                          \r'
         'Interrupted\n'
+    )
+    assert show_ansi_result(buf.getvalue()) == (
+        'Interrupted'
     )
 
 
@@ -186,6 +273,10 @@ def test_Progress_item_details(capsys):
         '\r[####################] 1/0\r'
         '\r{up1}{green}first repo - all good{reset}\r{down1}'
     )
+    assert show_ansi_result(buf.getvalue()) == (
+        'first repo - all good\n'
+        '[####################] 1/0'
+    )
 
 
 def test_Progress_item_failure(capsys):
@@ -203,6 +294,10 @@ def test_Progress_item_failure(capsys):
         '{brown}first repo{reset}\n'
         '\r[####################] 1/0\r'
         '\r{up1}{red}first repo - all bad{reset}\r{down1}'
+    )
+    assert show_ansi_result(buf.getvalue()) == (
+        'first repo - all bad\n'
+        '[####################] 1/0'
     )
 
 
@@ -222,6 +317,10 @@ def test_Progress_item_finished(capsys):
         '\r[####################] 1/0\r'
         '\r{up1}first repo\r{down1}'
     )
+    assert show_ansi_result(buf.getvalue()) == (
+        'first repo\n'
+        '[####################] 1/0'
+    )
 
 
 def test_Progress_item_finished_and_hidden(capsys):
@@ -239,6 +338,9 @@ def test_Progress_item_finished_and_hidden(capsys):
         '{brown}first repo{reset}\n'
         '\r[####################] 1/0\r'
         '{up1}{del1}'
+    )
+    assert show_ansi_result(buf.getvalue()) == (
+        '[####################] 1/0'
     )
 
 
@@ -260,6 +362,9 @@ def test_Progress_item_once_hidden_stays_hidden(capsys):
         '\r[####################] 1/0\r'
         '{up1}{del1}'
     )
+    assert show_ansi_result(buf.getvalue()) == (
+        '[####################] 1/0'
+    )
 
 
 def test_Progress_extra_info(capsys):
@@ -280,6 +385,11 @@ def test_Progress_extra_info(capsys):
         # plus a redraw in case the insertion pushed the progress bar offscreen
         '\r                          \r'
         '\r[####################] 1/0\r'
+    )
+    assert show_ansi_result(buf.getvalue()) == (
+        'first repo\n'
+        '    this is a very good repo btw\n'
+        '[####################] 1/0'
     )
 
 
@@ -303,6 +413,11 @@ def test_Progress_error_info(capsys):
         '\r                          \r'
         '\r[####################] 1/0\r'
     )
+    assert show_ansi_result(buf.getvalue()) == (
+        'first repo\n'
+        '    oopsies\n'
+        '[####################] 1/0'
+    )
 
 
 def test_Progress_extra_info_but_not_really(capsys):
@@ -319,6 +434,10 @@ def test_Progress_extra_info_but_not_really(capsys):
         buf.getvalue(),
         '{brown}first repo{reset}\n'
         '\r[####################] 1/0\r'
+    )
+    assert show_ansi_result(buf.getvalue()) == (
+        'first repo\n'
+        '[####################] 1/0'
     )
 
 
@@ -341,6 +460,12 @@ def test_Progress_extra_info_multiple_lines(capsys):
         '    ho\n'
         '\r                          \r'
         '\r[####################] 1/0\r'
+    )
+    assert show_ansi_result(buf.getvalue()) == (
+        'first repo\n'
+        '    hi\n'
+        '    ho\n'
+        '[####################] 1/0'
     )
 
 
@@ -373,6 +498,12 @@ def test_Progress_extra_info_not_last_item(capsys):
         '\r                          \r'
         '\r[####################] 2/0\r'
     )
+    assert show_ansi_result(buf.getvalue()) == (
+        'first repo\n'
+        '    wow such magic\n'
+        'second repo\n'
+        '[####################] 2/0'
+    )
 
 
 def test_Progress_extra_info_not_last_item_redraws_all_below(capsys):
@@ -391,6 +522,12 @@ def test_Progress_extra_info_not_last_item_redraws_all_below(capsys):
         '{ins1}    k\n'
         '\r                          \r'
         '\r[####################] 2/0\r'
+    )
+    assert show_ansi_result(buf.getvalue()) == (
+        'first repo\n'
+        'second repo\n'
+        '    k\n'
+        '[####################] 2/0'
     )
     item1.extra_info("wow such magic")
     compare(
@@ -411,6 +548,13 @@ def test_Progress_extra_info_not_last_item_redraws_all_below(capsys):
         '    k\n'
         '\r                          \r'
         '\r[####################] 2/0\r'
+    )
+    assert show_ansi_result(buf.getvalue()) == (
+        'first repo\n'
+        '    wow such magic\n'
+        'second repo\n'
+        '    k\n'
+        '[####################] 2/0'
     )
 
 
