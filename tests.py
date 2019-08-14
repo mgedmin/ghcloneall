@@ -1268,3 +1268,22 @@ def test_main_init_org(monkeypatch, capsys, config_writes_allowed):
         'github_org = gtimelog\n'
         '\n'
     )
+
+
+def test_main_reads_config_file(monkeypatch, capsys, config_writes_allowed):
+    config_writes_allowed.write_text(
+        u'[ghcloneall]\n'
+        u'github_user = mgedmin\n'
+        u'github_org = gtimelog\n'
+        u'pattern = *.vim\n'
+        u'\n'
+    )
+    monkeypatch.setattr(sys, 'argv', [
+        'ghcloneall',
+    ])
+    with pytest.raises(SystemExit):
+        ghcloneall.main()
+    assert (
+        'Please specify either --user or --organization, but not both'
+        in capsys.readouterr().err
+    )
