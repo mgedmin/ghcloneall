@@ -83,6 +83,11 @@ def mock_subprocess_Popen(monkeypatch):
     return mock_Popen
 
 
+@pytest.fixture(autouse=True)
+def mock_config_filename(monkeypatch):
+    monkeypatch.setattr(ghcloneall, 'CONFIG_FILE', '/dev/null')
+
+
 def make_page_url(url, page):
     if page == 1:
         return '%s?per_page=100' % url
@@ -1120,3 +1125,38 @@ def test_main_help(monkeypatch, capsys):
 def test_main_keyboard_interrupt(monkeypatch, capsys):
     monkeypatch.setattr(ghcloneall, '_main', raise_keyboard_interrupt)
     ghcloneall.main()
+
+
+def test_main_missing_args(monkeypatch, capsys):
+    monkeypatch.setattr(sys, 'argv', ['ghcloneall'])
+    with pytest.raises(SystemExit):
+        ghcloneall.main()
+    assert (
+        'Please specify either --user or --organization'
+        in capsys.readouterr().err
+    )
+
+
+def test_main_conflicting_args(monkeypatch, capsys):
+    monkeypatch.setattr(sys, 'argv', [
+        'ghcloneall', '--user', 'foo', '--org', 'bar',
+    ])
+    with pytest.raises(SystemExit):
+        ghcloneall.main()
+    assert (
+        'Please specify either --user or --organization, but not both'
+        in capsys.readouterr().err
+    )
+
+
+def test_main_run_error_handling(monkeypatch, capsys):
+    monkeypatch.setattr(sys, 'argv', [
+        'ghcloneall', '--user', 'mgedmin',
+    ])
+    with pytest.raises(SystemExit) as ctx:
+        ghcloneall.main()
+    assert str(ctx.value) == (
+        'Failed to fetch'
+        ' https://api.github.com/users/mgedmin/repos?per_page=100:\n'
+        'not found'
+    )

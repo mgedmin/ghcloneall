@@ -784,6 +784,8 @@ def _main():
 def main():
     try:
         _main()
+    except Error as e:
+        sys.exit(e)
     except KeyboardInterrupt:
         pass
 
