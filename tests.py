@@ -15,15 +15,58 @@ import ghcloneall
 class MockResponse:
 
     def __init__(self, status_code=200, json=None, headers=()):
+        assert json is not None
         self.status_code = status_code
         self.headers = {
             'content-type': 'application/json'
         }
         self.headers.update(headers)
-        self._json = json or {'json': 'data'}
+        self._json = json
 
     def json(self):
         return self._json
+
+
+class MockRequestGet:
+
+    def __init__(self):
+        self.responses = {}
+        self.not_found = MockResponse(
+            status_code=404, json={'message': 'not found'},
+        )
+
+    def update(self, responses):
+        self.responses.update(responses)
+
+    def __call__(self, url):
+        return self.responses.get(url, self.not_found)
+
+
+@pytest.fixture(autouse=True)
+def mock_requests_get(monkeypatch):
+    mock_get = MockRequestGet()
+    monkeypatch.setattr(requests, 'get', mock_get)
+    return mock_get
+
+
+def make_page_url(url, page):
+    if page == 1:
+        return '%s?per_page=100' % url
+    else:
+        return '%s?page=%d&per_page=100' % (url, page)
+
+
+def mock_multi_page_api_responses(url, pages):
+    assert len(pages) > 0
+    responses = {}
+    for n, page in enumerate(pages, 1):
+        page_url = make_page_url(url, n)
+        headers = {}
+        if n != len(pages):
+            next_page_url = make_page_url(url, n + 1)
+            headers['Link'] = '<%s>; rel="next"' % next_page_url
+        responses[page_url] = MockResponse(json=page, headers=headers)
+    return responses
 
 
 class Terminal:
@@ -130,7 +173,8 @@ def compare(actual, expected):
 
 
 def test_get_json_and_headers(monkeypatch):
-    monkeypatch.setattr(requests, 'get', lambda url: MockResponse())
+    monkeypatch.setattr(requests, 'get', lambda url: MockResponse(
+        json={'json': 'data'}))
     url = 'https://github.example.com/api'
     data, headers = ghcloneall.get_json_and_headers(url)
     assert data == {'json': 'data'}
@@ -556,6 +600,91 @@ def test_Progress_extra_info_not_last_item_redraws_all_below(capsys):
         '    k\n'
         '[####################] 2/0'
     )
+
+
+def test_RepoWrangler_list_repos_for_user(mock_requests_get):
+    mock_requests_get.update(mock_multi_page_api_responses(
+        url='https://api.github.com/users/test_user/repos',
+        pages=[
+            [
+                {'name': 'xyzzy'},
+                {'name': 'project-foo'},
+            ],
+        ],
+    ))
+    wrangler = ghcloneall.RepoWrangler()
+    result = wrangler.list_repos(user='test_user')
+    assert result == [
+        {'name': 'project-foo'},
+        {'name': 'xyzzy'},
+    ]
+
+
+def test_RepoWrangler_list_repos_for_org(mock_requests_get):
+    mock_requests_get.update(mock_multi_page_api_responses(
+        url='https://api.github.com/orgs/test_org/repos',
+        pages=[
+            [
+                {'name': 'xyzzy'},
+            ],
+        ],
+    ))
+    wrangler = ghcloneall.RepoWrangler()
+    result = wrangler.list_repos(organization='test_org')
+    assert result == [
+        {'name': 'xyzzy'},
+    ]
+
+
+def test_RepoWrangler_list_repos_filter_by_name(mock_requests_get):
+    mock_requests_get.update(mock_multi_page_api_responses(
+        url='https://api.github.com/users/test_user/repos',
+        pages=[
+            [
+                {'name': 'xyzzy'},
+                {'name': 'project-foo'},
+            ],
+        ],
+    ))
+    wrangler = ghcloneall.RepoWrangler()
+    result = wrangler.list_repos(user='test_user', pattern='pr*')
+    assert result == [
+        {'name': 'project-foo'},
+    ]
+
+
+def test_RepoWrangler_list_repos_progress_bar(mock_requests_get):
+    mock_requests_get.update(mock_multi_page_api_responses(
+        url='https://api.github.com/users/test_user/repos',
+        pages=[
+            [
+                {'name': 'xyzzy'},
+            ],
+            [
+                {'name': 'project-foo'},
+            ],
+        ],
+    ))
+    buf = StringIO()
+    progress = ghcloneall.Progress(stream=buf)
+    wrangler = ghcloneall.RepoWrangler(progress=progress)
+    result = wrangler.list_repos(user='test_user')
+    assert result == [
+        {'name': 'project-foo'},
+        {'name': 'xyzzy'},
+    ]
+    compare(
+        buf.getvalue(),
+        "{cr}Fetching list of test_user's repositories from GitHub...{cr}"
+        "{cr}                                                        {cr}"
+        "{cr}Fetching list of test_user's repositories from GitHub... (1){cr}"
+    )
+
+
+def test_RepoWrangler_list_repos_missing_arguments():
+    wrangler = ghcloneall.RepoWrangler()
+    with pytest.raises(ValueError):
+        wrangler.list_repos()
 
 
 class MockTask:
