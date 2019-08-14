@@ -11,21 +11,15 @@ import os
 import subprocess
 import sys
 import threading
+from concurrent import futures
 from operator import itemgetter
 
 try:
-    # Python 3
+    # Python 2
     from ConfigParser import SafeConfigParser as ConfigParser
 except ImportError:  # pragma: PY3
-    # Python 2
-    from configparser import ConfigParser
-
-try:
     # Python 3
-    from concurrent import futures
-except ImportError:  # pragma: PY2
-    # Python 2 backport
-    import futures
+    from configparser import ConfigParser
 
 import requests
 import requests_cache
