@@ -13,7 +13,7 @@ install:
 script:
   - coverage run -m pytest
   - flake8 *.py
-  - coverage report --fail-under=100
+  - coverage report --fail-under=100 -m
 after_success:
   - coveralls
 notifications:
