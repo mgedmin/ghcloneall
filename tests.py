@@ -1219,3 +1219,52 @@ def test_main_run_start_from(monkeypatch, mock_requests_get, capsys):
         '+ xyzzy (new)\n'
         '1 repositories: 0 updated, 1 new, 0 dirty.'
     )
+
+
+@pytest.fixture()
+def config_writes_allowed(mock_config_filename, monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(ghcloneall, 'CONFIG_FILE', '.ghcloneallrc')
+    return tmp_path / '.ghcloneallrc'
+
+
+def test_main_init_dry_run(monkeypatch, capsys, config_writes_allowed):
+    monkeypatch.setattr(sys, 'argv', [
+        'ghcloneall', '--init', '--user', 'mgedmin', '--pattern=*.vim',
+        '--dry-run',
+    ])
+    ghcloneall.main()
+    assert capsys.readouterr().out == (
+        'Did not write .ghcloneallrc because --dry-run was specified\n'
+    )
+
+
+def test_main_init(monkeypatch, capsys, config_writes_allowed):
+    monkeypatch.setattr(sys, 'argv', [
+        'ghcloneall', '--init', '--user', 'mgedmin', '--pattern=*.vim',
+    ])
+    ghcloneall.main()
+    assert capsys.readouterr().out == (
+        'Wrote .ghcloneallrc\n'
+    )
+    assert config_writes_allowed.read_text() == (
+        '[ghcloneall]\n'
+        'github_user = mgedmin\n'
+        'pattern = *.vim\n'
+        '\n'
+    )
+
+
+def test_main_init_org(monkeypatch, capsys, config_writes_allowed):
+    monkeypatch.setattr(sys, 'argv', [
+        'ghcloneall', '--init', '--org', 'gtimelog',
+    ])
+    ghcloneall.main()
+    assert capsys.readouterr().out == (
+        'Wrote .ghcloneallrc\n'
+    )
+    assert config_writes_allowed.read_text() == (
+        '[ghcloneall]\n'
+        'github_org = gtimelog\n'
+        '\n'
+    )
