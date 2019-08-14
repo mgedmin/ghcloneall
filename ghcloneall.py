@@ -475,7 +475,7 @@ class RepoTask(object):
                              stderr=subprocess.PIPE, **kwargs)
         stdout, stderr = p.communicate()
         retcode = p.wait()
-        if retcode != 0:
+        if stderr or retcode != 0:
             self.progress_item.error_info(self.decode(stderr))
             self.progress_item.error_info(
                 '{command} exited with {rc}'.format(
@@ -551,9 +551,9 @@ class RepoTask(object):
                     self.progress_item.extra_info(
                         'remote: {}'.format(remote_url))
                     self.progress_item.extra_info(
-                        'expected: {ssh_url}'.format_map(repo))
+                        'expected: {ssh_url}'.format(**repo))
                     self.progress_item.extra_info(
-                        'alternatively: {clone_url}'.format_map(repo))
+                        'alternatively: {clone_url}'.format(**repo))
                 self.dirty = True
         if self.options.verbose:
             unknown_files = self.get_unknown_files(dir)

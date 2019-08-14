@@ -52,19 +52,35 @@ def mock_requests_get(monkeypatch):
 
 
 class MockPopen:
-    def __init__(self, args, stdout=None, stderr=None):
-        pass
+    def __init__(self, stdout=b'', stderr=b'', rc=0):
+        self.stdout = stdout
+        self.stderr = stderr
+        self.rc = rc
+
+    def __call__(self, args, stdout=None, stderr=None, cwd=None):
+        new_stdout = self.stdout
+        new_stderr = self.stderr
+        if stderr == subprocess.STDOUT:
+            new_stdout += new_stderr
+            new_stderr = None
+        elif stderr != subprocess.PIPE:
+            new_stderr = None
+        if stdout != subprocess.PIPE:
+            new_stdout = None
+        return MockPopen(new_stdout, new_stderr, self.rc)
 
     def communicate(self):
-        return '', ''
+        return self.stdout, self.stderr
 
     def wait(self):
-        return 0
+        return self.rc
 
 
 @pytest.fixture(autouse=True)
 def mock_subprocess_Popen(monkeypatch):
-    monkeypatch.setattr(subprocess, 'Popen', MockPopen)
+    mock_Popen = MockPopen()
+    monkeypatch.setattr(subprocess, 'Popen', mock_Popen)
+    return mock_Popen
 
 
 def make_page_url(url, page):
@@ -180,8 +196,8 @@ def show_ansi(text):
     return re.sub(pattern, lambda m: replacements[m.group(0)], text)
 
 
-def show_ansi_result(text):
-    term = Terminal()
+def show_ansi_result(text, width=80, height=24):
+    term = Terminal(width, height)
     term.output(text)
     return str(term)
 
@@ -712,7 +728,7 @@ def test_RepoWrangler_repo_task(monkeypatch):
     wrangler = ghcloneall.RepoWrangler(progress=progress)
     task = wrangler.repo_task({
         'name': 'xyzzy',
-        'ssh_url': 'git@example.com:test_user/xyzzy.git'
+        'ssh_url': 'git@example.com:test_user/xyzzy.git',
     })
     compare(
         buf.getvalue(),
@@ -728,6 +744,320 @@ def test_RepoWrangler_repo_task(monkeypatch):
     assert wrangler.n_new == 1
     assert wrangler.n_updated == 0
     assert wrangler.n_dirty == 0
+
+
+def test_RepoTask_run_updates(monkeypatch, ):
+    monkeypatch.setattr(os.path, 'exists', lambda dir: True)
+    buf = StringIO()
+    progress = ghcloneall.Progress(stream=buf)
+    wrangler = ghcloneall.RepoWrangler(progress=progress)
+    task = wrangler.repo_task({
+        'name': 'xyzzy',
+        'ssh_url': 'git@example.com:test_user/xyzzy.git',
+    })
+    responses = ['aaaaa', 'bbbbb']
+    task.get_current_commit = lambda dir: responses.pop(0)
+    task.get_current_branch = lambda dir: 'master'
+    task.run()
+    assert show_ansi_result(buf.getvalue()) == (
+        '+ xyzzy (updated)\n'
+        "[####################] 1/0"
+    )
+    assert wrangler.n_repos == 1
+    assert wrangler.n_new == 0
+    assert wrangler.n_updated == 1
+    assert wrangler.n_dirty == 0
+
+
+def raise_exception(*args):
+    raise Exception("oh no")
+
+
+def test_RepoTask_run_handles_errors(monkeypatch):
+    monkeypatch.setattr(os.path, 'exists', lambda dir: False)
+    buf = StringIO()
+    progress = ghcloneall.Progress(stream=buf)
+    wrangler = ghcloneall.RepoWrangler(progress=progress)
+    task = wrangler.repo_task({
+        'name': 'xyzzy',
+        'ssh_url': 'git@example.com:test_user/xyzzy.git',
+    })
+    task.clone = raise_exception
+    task.run()
+    assert show_ansi_result(buf.getvalue()) == (
+        '+ xyzzy\n'
+        '    Exception: oh no\n'
+        "[####################] 1/0"
+    )
+    assert wrangler.n_repos == 1
+    assert wrangler.n_new == 0
+    assert wrangler.n_updated == 0
+    assert wrangler.n_dirty == 0
+
+
+def test_RepoTask_run_in_quiet_mode(monkeypatch):
+    monkeypatch.setattr(os.path, 'exists', lambda dir: True)
+    buf = StringIO()
+    progress = ghcloneall.Progress(stream=buf)
+    wrangler = ghcloneall.RepoWrangler(progress=progress, quiet=True)
+    task = wrangler.repo_task({
+        'name': 'xyzzy',
+        'ssh_url': 'git@example.com:test_user/xyzzy.git',
+    })
+    task.get_current_branch = lambda dir: 'master'
+    task.run()
+    assert show_ansi_result(buf.getvalue()) == (
+        "[####################] 1/0"
+    )
+    assert wrangler.n_repos == 1
+    assert wrangler.n_new == 0
+    assert wrangler.n_updated == 0
+    assert wrangler.n_dirty == 0
+
+
+def test_RepoTask_aborted(monkeypatch):
+    buf = StringIO()
+    progress = ghcloneall.Progress(stream=buf)
+    wrangler = ghcloneall.RepoWrangler(progress=progress, quiet=True)
+    task = wrangler.repo_task({
+        'name': 'xyzzy',
+        'ssh_url': 'git@example.com:test_user/xyzzy.git',
+    })
+    task.get_current_branch = lambda dir: 'master'
+    task.aborted()
+    assert show_ansi_result(buf.getvalue()) == (
+        '+ xyzzy (aborted)\n'
+        "[####################] 1/0"
+    )
+    assert wrangler.n_repos == 1
+    assert wrangler.n_new == 0
+    assert wrangler.n_updated == 0
+    assert wrangler.n_dirty == 0
+
+
+def test_RepoTask_verify():
+    buf = StringIO()
+    progress = ghcloneall.Progress(stream=buf)
+    wrangler = ghcloneall.RepoWrangler(progress=progress, verbose=2)
+    task = wrangler.repo_task({
+        'name': 'xyzzy',
+        'clone_url': 'https://example.com/test_user/xyzzy',
+        'ssh_url': 'git@example.com:test_user/xyzzy.git',
+    })
+    task.get_current_branch = lambda dir: 'boo'
+    task.get_remote_url = lambda dir: 'root@example.com:test_user/xyzzy'
+    task.has_local_changes = lambda dir: True
+    task.has_staged_changes = lambda dir: True
+    task.has_local_commits = lambda dir: True
+    task.verify(task.repo, 'xyzzy')
+    # NB: we can see that the output doesn't work right when the terminal
+    # width is 80 instead of 100, but I'm not up to fixing it today
+    assert show_ansi_result(buf.getvalue(), width=100) == (
+        '+ xyzzy (local changes) (staged changes) (local commits)'
+        ' (not on master) (wrong remote url)\n'
+        '    branch: boo\n'
+        '    remote: root@example.com:test_user/xyzzy.git\n'
+        '    expected: git@example.com:test_user/xyzzy.git\n'
+        '    alternatively: https://example.com/test_user/xyzzy\n'
+        "[####################] 1/0"
+    )
+    assert task.dirty
+
+
+def test_RepoTask_verify_unknown_files():
+    buf = StringIO()
+    progress = ghcloneall.Progress(stream=buf)
+    wrangler = ghcloneall.RepoWrangler(progress=progress, verbose=2)
+    task = wrangler.repo_task({
+        'name': 'xyzzy',
+        'clone_url': 'https://example.com/test_user/xyzzy',
+        'ssh_url': 'git@example.com:test_user/xyzzy.git',
+    })
+    task.get_current_branch = lambda dir: 'master'
+    task.get_remote_url = lambda dir: 'git@example.com:test_user/xyzzy'
+    task.get_unknown_files = lambda dir: [
+        '.coverage', 'tags', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
+    ]
+    task.verify(task.repo, 'xyzzy')
+    assert show_ansi_result(buf.getvalue()) == (
+        '+ xyzzy (unknown files)\n'
+        '    .coverage\n'
+        '    tags\n'
+        '    a\n'
+        '    b\n'
+        '    c\n'
+        '    d\n'
+        '    e\n'
+        '    f\n'
+        '    g\n'
+        '    h\n'
+        '    (and 2 more)\n'
+        "[####################] 1/0"
+    )
+    assert task.dirty
+
+
+def test_RepoTask_branch_name():
+    task = ghcloneall.RepoTask({}, None, None, None)
+    assert task.branch_name('refs/heads/master') == 'master'
+    assert task.branch_name('refs/tags/v0.15') == 'tags/v0.15'
+
+
+def test_RepoTask_call_status_handling(mock_subprocess_Popen):
+    buf = StringIO()
+    progress = ghcloneall.Progress(stream=buf)
+    wrangler = ghcloneall.RepoWrangler(progress=progress)
+    task = wrangler.repo_task({
+        'name': 'xyzzy',
+    })
+    mock_subprocess_Popen.rc = 1
+    assert task.call(['git', 'diff', '--quiet']) == 1
+    # no failure message should be shown because a non-zero status code is
+    # not a failure!
+    assert show_ansi_result(buf.getvalue()) == (
+        '+ xyzzy\n'
+        "[####################] 1/0"
+    )
+
+
+def test_RepoTask_call_error_handling(mock_subprocess_Popen):
+    buf = StringIO()
+    progress = ghcloneall.Progress(stream=buf)
+    wrangler = ghcloneall.RepoWrangler(progress=progress)
+    task = wrangler.repo_task({
+        'name': 'xyzzy',
+    })
+    mock_subprocess_Popen.stdout = b'oh no\n'
+    mock_subprocess_Popen.rc = 0
+    assert task.call(['git', 'fail', '--please']) == 0
+    assert show_ansi_result(buf.getvalue()) == (
+        '+ xyzzy\n'
+        '    oh no\n'
+        '    git fail exited with 0\n'
+        "[####################] 1/0"
+    )
+
+
+def test_RepoTask_call_error_handling_verbose(mock_subprocess_Popen):
+    buf = StringIO()
+    progress = ghcloneall.Progress(stream=buf)
+    wrangler = ghcloneall.RepoWrangler(progress=progress, verbose=1)
+    task = wrangler.repo_task({
+        'name': 'xyzzy',
+    })
+    mock_subprocess_Popen.stdout = b'oh no\n'
+    mock_subprocess_Popen.rc = 1
+    assert task.call(['git', 'fail', '--please']) == 1
+    assert show_ansi_result(buf.getvalue()) == (
+        '+ xyzzy\n'
+        '    oh no\n'
+        '    git fail --please exited with 1\n'
+        "[####################] 1/0"
+    )
+
+
+def test_RepoTask_check_call_status_handling(mock_subprocess_Popen):
+    buf = StringIO()
+    progress = ghcloneall.Progress(stream=buf)
+    wrangler = ghcloneall.RepoWrangler(progress=progress)
+    task = wrangler.repo_task({
+        'name': 'xyzzy',
+    })
+    mock_subprocess_Popen.rc = 1
+    task.check_call(['git', 'fail'])
+    assert show_ansi_result(buf.getvalue()) == (
+        '+ xyzzy (failed)\n'
+        '    git fail exited with 1\n'
+        "[####################] 1/0"
+    )
+
+
+def test_RepoTask_check_call_output_is_shown(mock_subprocess_Popen):
+    buf = StringIO()
+    progress = ghcloneall.Progress(stream=buf)
+    wrangler = ghcloneall.RepoWrangler(progress=progress)
+    task = wrangler.repo_task({
+        'name': 'xyzzy',
+    })
+    mock_subprocess_Popen.stdout = b'oh no\n'
+    mock_subprocess_Popen.rc = 0
+    task.check_call(['git', 'fail', '--please'])
+    assert show_ansi_result(buf.getvalue()) == (
+        '+ xyzzy\n'
+        '    oh no\n'
+        '    git fail exited with 0\n'
+        "[####################] 1/0"
+    )
+
+
+def test_RepoTask_check_call_status_and_output(mock_subprocess_Popen):
+    buf = StringIO()
+    progress = ghcloneall.Progress(stream=buf)
+    wrangler = ghcloneall.RepoWrangler(progress=progress)
+    task = wrangler.repo_task({
+        'name': 'xyzzy',
+    })
+    mock_subprocess_Popen.stdout = b'oh no\n'
+    mock_subprocess_Popen.rc = 1
+    task.check_call(['git', 'fail', '--please'])
+    assert show_ansi_result(buf.getvalue()) == (
+        '+ xyzzy (failed)\n'
+        '    oh no\n'
+        '    git fail exited with 1\n'
+        "[####################] 1/0"
+    )
+
+
+def test_RepoTask_check_output_error_handling(mock_subprocess_Popen):
+    buf = StringIO()
+    progress = ghcloneall.Progress(stream=buf)
+    wrangler = ghcloneall.RepoWrangler(progress=progress)
+    task = wrangler.repo_task({
+        'name': 'xyzzy',
+    })
+    mock_subprocess_Popen.stdout = b'uh oh\n'
+    mock_subprocess_Popen.stderr = b'oh no\n'
+    mock_subprocess_Popen.rc = 1
+    assert task.check_output(['git', 'fail', '--please']) == 'uh oh\n'
+    assert show_ansi_result(buf.getvalue()) == (
+        '+ xyzzy\n'
+        '    oh no\n'
+        '    git fail exited with 1\n'
+        "[####################] 1/0"
+    )
+
+
+def test_RepoTask_check_output_stderr_without_rc(mock_subprocess_Popen):
+    buf = StringIO()
+    progress = ghcloneall.Progress(stream=buf)
+    wrangler = ghcloneall.RepoWrangler(progress=progress)
+    task = wrangler.repo_task({
+        'name': 'xyzzy',
+    })
+    mock_subprocess_Popen.stdout = b'uh oh\n'
+    mock_subprocess_Popen.stderr = b'oh no\n'
+    mock_subprocess_Popen.rc = 0
+    assert task.check_output(['git', 'fail', '--please']) == 'uh oh\n'
+    assert show_ansi_result(buf.getvalue()) == (
+        '+ xyzzy\n'
+        '    oh no\n'
+        '    git fail exited with 0\n'
+        "[####################] 1/0"
+    )
+
+
+def test_RepoTask_get_current_branch(mock_subprocess_Popen):
+    task = ghcloneall.RepoTask({}, None, None, None)
+    mock_subprocess_Popen.stdout = b'refs/heads/master\n'
+    assert task.get_current_branch('xyzzy') == 'master'
+
+
+def test_RepoTask_get_remote_url(mock_subprocess_Popen):
+    task = ghcloneall.RepoTask({}, None, None, None)
+    mock_subprocess_Popen.stdout = b'https://example.com/test_user/xyzzy\n'
+    assert task.get_remote_url('xyzzy') == (
+        'https://example.com/test_user/xyzzy'
+    )
 
 
 class MockTask:

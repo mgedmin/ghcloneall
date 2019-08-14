@@ -6,6 +6,8 @@ Changelog
 ------------------
 
 - Drop support for Python 3.3 and 3.4.
+- Add a test suite.
+- Fix AttributeError: 'str' object has no attribute 'format_map' on Python 2.
 
 
 1.7.0 (2018-12-19)
