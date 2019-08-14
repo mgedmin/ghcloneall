@@ -1,3 +1,9 @@
 include *.rst
 include LICENCE
 include tox.ini
+
+# added by check_manifest.py
+include *.py
+include *.yml
+include .coveragerc
+include pytest.ini
