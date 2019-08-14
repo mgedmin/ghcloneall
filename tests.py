@@ -38,7 +38,7 @@ class Terminal:
     def __str__(self):
         return '\n'.join(''.join(row).rstrip() for row in self.rows).rstrip()
 
-    def print(self, text):
+    def output(self, text):
         for s in re.split(r'(\033\[\d*[a-zA-Z]|.)', text):
             if s == '\r':
                 self.x = 0
@@ -121,7 +121,7 @@ def show_ansi(text):
 
 def show_ansi_result(text):
     term = Terminal()
-    term.print(text)
+    term.output(text)
     return str(term)
 
 
