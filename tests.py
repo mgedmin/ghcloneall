@@ -45,7 +45,7 @@ class MockRequestGet:
     def update(self, responses):
         self.responses.update(responses)
 
-    def __call__(self, url):
+    def __call__(self, url, headers=None):
         return self.responses.get(url, self.not_found)
 
 
@@ -221,11 +221,14 @@ def compare(actual, expected):
     assert show_ansi(actual) == show_ansi(expected)
 
 
-def test_get_json_and_links(monkeypatch):
-    monkeypatch.setattr(requests, 'get', lambda url: MockResponse(
-        json={'json': 'data'},
-        links={'next': 'https://github.example.com/api?page=2'}))
+def test_get_json_and_links(mock_requests_get):
     url = 'https://github.example.com/api'
+    mock_requests_get.update({
+        url: MockResponse(
+            json={'json': 'data'},
+            links={'next': 'https://github.example.com/api?page=2'},
+        ),
+    })
     data, links = ghcloneall.get_json_and_links(url)
     assert data == {'json': 'data'}
     assert links == {
@@ -236,16 +239,20 @@ def test_get_json_and_links(monkeypatch):
     }
 
 
-def test_get_json_and_links_failure(monkeypatch):
-    monkeypatch.setattr(requests, 'get', lambda url: MockResponse(
-        status_code=400, json={'message': 'this request is baaad'}))
+def test_get_json_and_links_failure(mock_requests_get):
     url = 'https://github.example.com/api'
+    mock_requests_get.update({
+        url: MockResponse(
+            status_code=400,
+            json={'message': 'this request is baaad'},
+        ),
+    })
     with pytest.raises(ghcloneall.Error):
         ghcloneall.get_json_and_links(url)
 
 
-def test_get_github_list(monkeypatch):
-    monkeypatch.setattr(requests, 'get', lambda url: {
+def test_get_github_list(mock_requests_get):
+    mock_requests_get.update({
         'https://github.example.com/api?per_page=100': MockResponse(
             json=[{'item': 1}, {'item': 2}],
             links={
@@ -258,7 +265,7 @@ def test_get_github_list(monkeypatch):
             }),
         'https://github.example.com/api?page=3&per_page=100': MockResponse(
             json=[{'item': 5}]),
-    }.get(url, MockResponse(status_code=404, json={'message': 'no'})))
+    })
     url = 'https://github.example.com/api'
     progress = []
     res = ghcloneall.get_github_list(url, progress_callback=progress.append)

@@ -5,7 +5,7 @@ Changelog
 1.7.2 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Use a custom User-Agent header when talking to GitHub.
 
 
 1.7.1 (2019-08-14)

@@ -35,6 +35,11 @@ CONFIG_FILE = '.ghcloneallrc'
 CONFIG_SECTION = 'ghcloneall'
 
 
+USER_AGENT = 'ghcloneall/%s (using %s)' % (
+    __version__, requests.utils.default_user_agent(),
+)
+
+
 class Error(Exception):
     """An error that is not a bug in this script."""
 
@@ -44,7 +49,7 @@ def get_json_and_links(url):
 
     Returns a tuple (json_data, links) where links is something dict-like.
     """
-    r = requests.get(url)
+    r = requests.get(url, headers={'user-agent': USER_AGENT})
     # When we get a JSON error response fron GitHub, we want to show that
     # message to the user instead of a traceback.  I expect it'll be something
     # like "rate limit exceeded, try again in N minutes".
