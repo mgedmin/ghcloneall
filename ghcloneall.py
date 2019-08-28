@@ -703,7 +703,7 @@ def _main():
         help='specify the GitHub user')
     parser.add_argument(
         '--pattern',
-        help='specify repository name pattern to filter')
+        help='specify repository name glob pattern to filter')
     parser.add_argument(
         '--init', action='store_true',
         help='create a {} from command-line arguments'.format(CONFIG_FILE))

@@ -84,7 +84,7 @@ Other command-line options::
       --organization ORGANIZATION
                             specify the GitHub organization
       --user USER           specify the GitHub user
-      --pattern PATTERN     specify repository name pattern to filter
+      --pattern PATTERN     specify repository name glob pattern to filter
       --init                create a .ghcloneallrc from command-line arguments
       --http-cache DBNAME   cache HTTP requests on disk in an sqlite database
                             for 5 minutes (default: .httpcache)
