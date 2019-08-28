@@ -75,8 +75,8 @@ def get_github_list(url, batch_size=100, progress_callback=None):
 
     """
     # API documented at http://developer.github.com/v3/#pagination
-    res, links = get_json_and_links('{}?per_page={}'.format(
-                                                url, batch_size))
+    res, links = get_json_and_links('{}{}per_page={}'.format(
+        url, '&' if '?' in url else '?', batch_size))
     while 'next' in links:
         if progress_callback:
             progress_callback(len(res))
@@ -372,6 +372,15 @@ class RepoWrangler(object):
 
         def progress_callback(n):
             self.progress.status("{} ({})".format(message, n))
+
+        # User repositories default to sort=full_name, org repositories default
+        # to sort=created.  In theory we don't care because we will sort the
+        # list ourselves, but in the future I may want to start cloning in
+        # parallel with the paginated fetching.  This requires the sorting to
+        # happen before pagination, i.e. on the server side, as I want to
+        # process the repositories alphabetically (both for aesthetic reasons,
+        # and in order for --start-from to be useful).
+        list_url += '?sort=full_name'
 
         repos = get_github_list(list_url, progress_callback=progress_callback)
         if pattern:

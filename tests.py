@@ -100,9 +100,9 @@ def mock_config_filename(monkeypatch):
 
 def make_page_url(url, page):
     if page == 1:
-        return '%s?per_page=100' % url
+        return '%s?sort=full_name&per_page=100' % url
     else:
-        return '%s?page=%d&per_page=100' % (url, page)
+        return '%s?sort=full_name&page=%d&per_page=100' % (url, page)
 
 
 def mock_multi_page_api_responses(url, pages):
@@ -1173,8 +1173,8 @@ def test_main_run_error_handling(monkeypatch, capsys):
     with pytest.raises(SystemExit) as ctx:
         ghcloneall.main()
     assert str(ctx.value) == (
-        'Failed to fetch'
-        ' https://api.github.com/users/mgedmin/repos?per_page=100:\n'
+        'Failed to fetch https://api.github.com/users/mgedmin/repos'
+        '?sort=full_name&per_page=100:\n'
         'not found'
     )
 
