@@ -66,8 +66,11 @@ Other command-line options::
     $ ghcloneall --help
     usage: ghcloneall [-h] [--version] [-c CONCURRENCY] [-n] [-q] [-v]
                       [--start-from REPO] [--organization ORGANIZATION]
-                      [--user USER] [--pattern PATTERN] [--init]
-                      [--http-cache DBNAME] [--no-http-cache]
+                      [--user USER] [--pattern PATTERN] [--include-forks]
+                      [--exclude-forks] [--include-archived] [--exclude-archived]
+                      [--include-private] [--exclude-private] [--include-disabled]
+                      [--exclude-disabled] [--init] [--http-cache DBNAME]
+                      [--no-http-cache]
 
     Clone/update all user/org repositories from GitHub.
 
@@ -85,6 +88,15 @@ Other command-line options::
                             specify the GitHub organization
       --user USER           specify the GitHub user
       --pattern PATTERN     specify repository name glob pattern to filter
+      --include-forks       include repositories forked from other users/orgs
+      --exclude-forks       exclude repositories forked from other users/orgs
+                            (default)
+      --include-archived    include archived repositories
+      --exclude-archived    exclude archived repositories (default)
+      --include-private     include private repositories (default)
+      --exclude-private     exclude private repositories
+      --include-disabled    include disabled repositories (default)
+      --exclude-disabled    exclude disabled repositories
       --init                create a .ghcloneallrc from command-line arguments
       --http-cache DBNAME   cache HTTP requests on disk in an sqlite database
                             for 5 minutes (default: .httpcache)
@@ -102,8 +114,13 @@ should look like this::
     # github_org = ZopeFoundation
     github_user = mgedmin
     pattern = *.vim
+    # You can also uncomment and change these if you wish
+    # include_forks = False
+    # include_archived = False
+    # include_private = True
+    # include_disabled = True
 
-You can create one with ``ghcloneall --init --{user,org} X [--pattern Y]``.
+You can create one with ``ghcloneall --init --{user,org} X [--pattern Y] [--{include,exclude}-{forks,archived,private,disabled}]``.
 
 
 Tips

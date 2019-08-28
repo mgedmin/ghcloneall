@@ -663,6 +663,8 @@ def repo(name, **kwargs):
         'name': name,
         'archived': False,
         'fork': False,
+        'private': False,
+        'disabled': False,
         'clone_url': 'https://github.com/test_user/%s' % name,
         'ssh_url': 'git@github.com:test_user/%s.git' % name,
     }
@@ -728,12 +730,39 @@ def test_RepoWrangler_list_repos_filter_by_status(mock_requests_get):
             [
                 repo('a', archived=True),
                 repo('f', fork=True),
+                repo('p', private=True),
+                repo('d', private=True, disabled=True),
                 repo('c'),
             ],
         ],
     ))
     wrangler = ghcloneall.RepoWrangler()
     result = wrangler.list_repos(user='test_user')
+    assert result == [
+        repo('c'),
+        repo('d', private=True, disabled=True),
+        repo('p', private=True),
+    ]
+    result = wrangler.list_repos(user='test_user', include_archived=True)
+    assert result == [
+        repo('a', archived=True),
+        repo('c'),
+        repo('d', private=True, disabled=True),
+        repo('p', private=True),
+    ]
+    result = wrangler.list_repos(user='test_user', include_forks=True)
+    assert result == [
+        repo('c'),
+        repo('d', private=True, disabled=True),
+        repo('f', fork=True),
+        repo('p', private=True),
+    ]
+    result = wrangler.list_repos(user='test_user', include_disabled=False)
+    assert result == [
+        repo('c'),
+        repo('p', private=True),
+    ]
+    result = wrangler.list_repos(user='test_user', include_private=False)
     assert result == [
         repo('c'),
     ]
@@ -1179,7 +1208,9 @@ def test_main_run(monkeypatch, mock_requests_get, capsys):
         pages=[
             [
                 repo('ghcloneall'),
-                repo('xyzzy'),
+                repo('experiment', archived=True),
+                repo('typo-fix', fork=True),
+                repo('xyzzy', private=True, disabled=True),
             ],
         ],
     ))
@@ -1260,12 +1291,37 @@ def test_main_init_org(monkeypatch, capsys, config_writes_allowed):
     )
 
 
+def test_main_init_filter_flags(monkeypatch, capsys, config_writes_allowed):
+    monkeypatch.setattr(sys, 'argv', [
+        'ghcloneall', '--init', '--org', 'gtimelog',
+        '--include-forks', '--exclude-private',
+        '--exclude-disabled', '--exclude-archived',
+    ])
+    ghcloneall.main()
+    assert capsys.readouterr().out == (
+        'Wrote .ghcloneallrc\n'
+    )
+    assert config_writes_allowed.read_text() == (
+        '[ghcloneall]\n'
+        'github_org = gtimelog\n'
+        'include_forks = True\n'
+        'include_archived = False\n'
+        'include_private = False\n'
+        'include_disabled = False\n'
+        '\n'
+    )
+
+
 def test_main_reads_config_file(monkeypatch, capsys, config_writes_allowed):
     config_writes_allowed.write_text(
         u'[ghcloneall]\n'
         u'github_user = mgedmin\n'
         u'github_org = gtimelog\n'
         u'pattern = *.vim\n'
+        u'include_forks = True\n'
+        u'include_archived = False\n'
+        u'include_private = False\n'
+        u'include_disabled = False\n'
         u'\n'
     )
     monkeypatch.setattr(sys, 'argv', [

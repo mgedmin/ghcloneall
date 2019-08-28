@@ -28,7 +28,7 @@ import requests_cache
 __author__ = 'Marius Gedminas <marius@gedmin.as>'
 __licence__ = 'MIT'
 __url__ = 'https://github.com/mgedmin/ghcloneall'
-__version__ = '1.7.2.dev0'
+__version__ = '1.8.0.dev0'
 
 
 CONFIG_FILE = '.ghcloneallrc'
@@ -356,7 +356,9 @@ class RepoWrangler(object):
         self.progress = progress if progress else Progress()
         self.lock = threading.Lock()
 
-    def list_repos(self, user=None, organization=None, pattern=None):
+    def list_repos(self, user=None, organization=None, pattern=None,
+                   include_archived=False, include_forks=False,
+                   include_private=True, include_disabled=True):
         if organization and not user:
             owner = organization
             list_url = 'https://api.github.com/orgs/{}/repos'.format(owner)
@@ -383,20 +385,20 @@ class RepoWrangler(object):
         list_url += '?sort=full_name'
 
         repos = get_github_list(list_url, progress_callback=progress_callback)
-        repos = self.filter_repos(repos, pattern)
-        return sorted(repos, key=itemgetter('name'))
-
-    def filter_repos(self, repos, pattern=None):
-        repos = (r for r in repos if not r['archived'])
-        repos = (r for r in repos if not r['fork'])
+        if not include_archived:
+            repos = (r for r in repos if not r['archived'])
+        if not include_forks:
+            repos = (r for r in repos if not r['fork'])
+        if not include_private:
+            repos = (r for r in repos if not r['private'])
+        if not include_disabled:
+            repos = (r for r in repos if not r['disabled'])
         # other possibilities for filtering:
-        # - exclude private repos (if not r['private'])
-        # - exclude disabled repos (if not r['disabled'])
         # - exclude template repos (if not r['is_template']), once that feature
         #   is out of beta
         if pattern:
             repos = (r for r in repos if fnmatch.fnmatch(r['name'], pattern))
-        return repos
+        return sorted(repos, key=itemgetter('name'))
 
     def repo_task(self, repo):
         item = self.progress.item("+ {name}".format(**repo))
@@ -725,6 +727,35 @@ def _main():
         '--pattern',
         help='specify repository name glob pattern to filter')
     parser.add_argument(
+        '--include-forks', action='store_true', default=None,
+        help='include repositories forked from other users/orgs')
+    parser.add_argument(
+        '--exclude-forks', action='store_false', dest='include_forks',
+        help='exclude repositories forked from other users/orgs (default)')
+    parser.add_argument(
+        '--include-archived', action='store_true', default=None,
+        help='include archived repositories')
+    parser.add_argument(
+        '--exclude-archived', action='store_false', dest='include_archived',
+        help='exclude archived repositories (default)')
+    parser.add_argument(
+        '--include-private', action='store_true', default=None,
+        help='include private repositories (default)')
+    parser.add_argument(
+        '--exclude-private', action='store_false', dest='include_private',
+        help='exclude private repositories')
+    # Apparently disabled repositories are private repositories were
+    # you didn't pay the bill, so you can't access them any more
+    # (until you pay the bill).  I'm going to include them by
+    # default to let the user notice they have a problem (assuming
+    # git clone/git pull will fail on a disabled repository).
+    parser.add_argument(
+        '--include-disabled', action='store_true', default=None,
+        help='include disabled repositories (default)')
+    parser.add_argument(
+        '--exclude-disabled', action='store_false', dest='include_disabled',
+        help='exclude disabled repositories')
+    parser.add_argument(
         '--init', action='store_true',
         help='create a {} from command-line arguments'.format(CONFIG_FILE))
     parser.add_argument(
@@ -746,6 +777,22 @@ def _main():
     if not args.pattern:
         if config.has_option(CONFIG_SECTION, 'pattern'):
             args.pattern = config.get(CONFIG_SECTION, 'pattern')
+    if args.include_forks is None:
+        if config.has_option(CONFIG_SECTION, 'include_forks'):
+            args.include_forks = config.getboolean(CONFIG_SECTION,
+                                                   'include_forks')
+    if args.include_archived is None:
+        if config.has_option(CONFIG_SECTION, 'include_archived'):
+            args.include_archived = config.getboolean(CONFIG_SECTION,
+                                                      'include_archived')
+    if args.include_private is None:
+        if config.has_option(CONFIG_SECTION, 'include_private'):
+            args.include_private = config.getboolean(CONFIG_SECTION,
+                                                     'include_private')
+    if args.include_disabled is None:
+        if config.has_option(CONFIG_SECTION, 'include_disabled'):
+            args.include_disabled = config.getboolean(CONFIG_SECTION,
+                                                      'include_disabled')
 
     if args.user and args.organization:
         parser.error(
@@ -763,6 +810,18 @@ def _main():
             config.set(CONFIG_SECTION, 'github_org', args.organization)
         if args.pattern:
             config.set(CONFIG_SECTION, 'pattern', args.pattern)
+        if args.include_forks is not None:
+            config.set(CONFIG_SECTION, 'include_forks',
+                       str(args.include_forks))
+        if args.include_archived is not None:
+            config.set(CONFIG_SECTION, 'include_archived',
+                       str(args.include_archived))
+        if args.include_private is not None:
+            config.set(CONFIG_SECTION, 'include_private',
+                       str(args.include_private))
+        if args.include_disabled is not None:
+            config.set(CONFIG_SECTION, 'include_disabled',
+                       str(args.include_disabled))
         if not args.dry_run:
             write_config_file(CONFIG_FILE, config)
             print("Wrote {}".format(CONFIG_FILE))
@@ -771,6 +830,11 @@ def _main():
                 "Did not write {} because --dry-run was specified".format(
                     CONFIG_FILE))
         return
+
+    if args.include_private is None:
+        args.include_private = True
+    if args.include_disabled is None:
+        args.include_disabled = True
 
     if args.http_cache:
         requests_cache.install_cache(args.http_cache,
@@ -785,7 +849,12 @@ def _main():
         repos = wrangler.list_repos(
             organization=args.organization,
             user=args.user,
-            pattern=args.pattern)
+            pattern=args.pattern,
+            include_forks=args.include_forks,
+            include_archived=args.include_archived,
+            include_private=args.include_private,
+            include_disabled=args.include_disabled,
+        )
         progress.set_limit(len(repos))
         if args.concurrency < 2:
             queue = SequentialJobQueue()

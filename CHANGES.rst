@@ -5,7 +5,11 @@ Changelog
 1.8.0 (unreleased)
 ------------------
 
-- Skip forks and archived repositories.
+- Skip forks and archived repositories by default.
+- Command-line args: --include-forks, --exclude-forks.
+- Command-line args: --include-archived, --exclude-archived.
+- Command-line args: --include-private, --exclude-private.
+- Command-line args: --include-disabled, --exclude-disabled.
 - Use a custom User-Agent header when talking to GitHub.
 
 
