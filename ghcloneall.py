@@ -39,15 +39,15 @@ class Error(Exception):
     """An error that is not a bug in this script."""
 
 
-def get_json_and_headers(url):
+def get_json_and_links(url):
     """Perform HTTP GET for a URL, return deserialized JSON and headers.
 
-    Returns a tuple (json_data, headers) where headers is something dict-like.
+    Returns a tuple (json_data, links) where links is something dict-like.
     """
     r = requests.get(url)
     if 400 <= r.status_code < 500:
         raise Error("Failed to fetch {}:\n{}".format(url, r.json()['message']))
-    return r.json(), r.headers
+    return r.json(), r.links
 
 
 def get_github_list(url, batch_size=100, progress_callback=None):
@@ -64,15 +64,12 @@ def get_github_list(url, batch_size=100, progress_callback=None):
 
     """
     # API documented at http://developer.github.com/v3/#pagination
-    res, headers = get_json_and_headers('{}?per_page={}'.format(
+    res, links = get_json_and_links('{}?per_page={}'.format(
                                                 url, batch_size))
-    page = 1
-    while 'rel="next"' in headers.get('Link', ''):
-        page += 1
+    while 'next' in links:
         if progress_callback:
             progress_callback(len(res))
-        more, headers = get_json_and_headers('{}?page={}&per_page={}'.format(
-                                                    url, page, batch_size))
+        more, links = get_json_and_links(links['next']['url'])
         res += more
     return res
 

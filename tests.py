@@ -17,13 +17,13 @@ import ghcloneall
 
 class MockResponse:
 
-    def __init__(self, status_code=200, json=None, headers=()):
+    def __init__(self, status_code=200, json=None, links={}):
         assert json is not None
         self.status_code = status_code
-        self.headers = {
-            'content-type': 'application/json'
+        self.links = {
+            rel: dict(rel=rel, url=url)
+            for rel, url in links.items()
         }
-        self.headers.update(headers)
         self._json = json
 
     def json(self):
@@ -106,11 +106,11 @@ def mock_multi_page_api_responses(url, pages):
     responses = {}
     for n, page in enumerate(pages, 1):
         page_url = make_page_url(url, n)
-        headers = {}
+        links = {}
         if n != len(pages):
             next_page_url = make_page_url(url, n + 1)
-            headers['Link'] = '<%s>; rel="next"' % next_page_url
-        responses[page_url] = MockResponse(json=page, headers=headers)
+            links['next'] = next_page_url
+        responses[page_url] = MockResponse(json=page, links=links)
     return responses
 
 
@@ -217,40 +217,40 @@ def compare(actual, expected):
     assert show_ansi(actual) == show_ansi(expected)
 
 
-def test_get_json_and_headers(monkeypatch):
+def test_get_json_and_links(monkeypatch):
     monkeypatch.setattr(requests, 'get', lambda url: MockResponse(
-        json={'json': 'data'}))
+        json={'json': 'data'},
+        links={'next': 'https://github.example.com/api?page=2'}))
     url = 'https://github.example.com/api'
-    data, headers = ghcloneall.get_json_and_headers(url)
+    data, links = ghcloneall.get_json_and_links(url)
     assert data == {'json': 'data'}
-    assert headers == {'content-type': 'application/json'}
+    assert links == {
+        'next': {
+            'rel': 'next',
+            'url': 'https://github.example.com/api?page=2',
+        },
+    }
 
 
-def test_get_json_and_headers_failure(monkeypatch):
+def test_get_json_and_links_failure(monkeypatch):
     monkeypatch.setattr(requests, 'get', lambda url: MockResponse(
         status_code=400, json={'message': 'this request is baaad'}))
     url = 'https://github.example.com/api'
     with pytest.raises(ghcloneall.Error):
-        ghcloneall.get_json_and_headers(url)
+        ghcloneall.get_json_and_links(url)
 
 
 def test_get_github_list(monkeypatch):
     monkeypatch.setattr(requests, 'get', lambda url: {
         'https://github.example.com/api?per_page=100': MockResponse(
             json=[{'item': 1}, {'item': 2}],
-            headers={
-                'Link': (
-                    '<https://github.example.com/api?page=2&per_page=100>;'
-                    ' rel="next"'
-                ),
+            links={
+                'next': 'https://github.example.com/api?page=2&per_page=100',
             }),
         'https://github.example.com/api?page=2&per_page=100': MockResponse(
             json=[{'item': 3}, {'item': 4}],
-            headers={
-                'Link': (
-                    '<https://github.example.com/api?page=3&per_page=100>;'
-                    ' rel="next"'
-                ),
+            links={
+                'next': 'https://github.example.com/api?page=3&per_page=100',
             }),
         'https://github.example.com/api?page=3&per_page=100': MockResponse(
             json=[{'item': 5}]),
