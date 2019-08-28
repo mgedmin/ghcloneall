@@ -45,8 +45,14 @@ def get_json_and_links(url):
     Returns a tuple (json_data, links) where links is something dict-like.
     """
     r = requests.get(url)
+    # When we get a JSON error response fron GitHub, we want to show that
+    # message to the user instead of a traceback.  I expect it'll be something
+    # like "rate limit exceeded, try again in N minutes".
     if 400 <= r.status_code < 500:
         raise Error("Failed to fetch {}:\n{}".format(url, r.json()['message']))
+    # But if GitHub is down and returns a 502 instead of a 200, let's not try
+    # to parse the response as JSON.
+    r.raise_for_status()
     return r.json(), r.links
 
 
