@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-1.8.0 (unreleased)
+1.8.0 (2019-08-28)
 ------------------
 
 - Skip forks and archived repositories by default.
