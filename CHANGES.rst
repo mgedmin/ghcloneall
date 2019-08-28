@@ -2,9 +2,10 @@ Changelog
 =========
 
 
-1.7.2 (unreleased)
+1.8.0 (unreleased)
 ------------------
 
+- Skip forks and archived repositories.
 - Use a custom User-Agent header when talking to GitHub.
 
 

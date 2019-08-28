@@ -383,9 +383,20 @@ class RepoWrangler(object):
         list_url += '?sort=full_name'
 
         repos = get_github_list(list_url, progress_callback=progress_callback)
+        repos = self.filter_repos(repos, pattern)
+        return sorted(repos, key=itemgetter('name'))
+
+    def filter_repos(self, repos, pattern=None):
+        repos = (r for r in repos if not r['archived'])
+        repos = (r for r in repos if not r['fork'])
+        # other possibilities for filtering:
+        # - exclude private repos (if not r['private'])
+        # - exclude disabled repos (if not r['disabled'])
+        # - exclude template repos (if not r['is_template']), once that feature
+        #   is out of beta
         if pattern:
             repos = (r for r in repos if fnmatch.fnmatch(r['name'], pattern))
-        return sorted(repos, key=itemgetter('name'))
+        return repos
 
     def repo_task(self, repo):
         item = self.progress.item("+ {name}".format(**repo))

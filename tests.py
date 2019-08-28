@@ -658,21 +658,33 @@ def test_Progress_extra_info_not_last_item_redraws_all_below(capsys):
     )
 
 
+def repo(name, **kwargs):
+    repo = {
+        'name': name,
+        'archived': False,
+        'fork': False,
+        'clone_url': 'https://github.com/test_user/%s' % name,
+        'ssh_url': 'git@github.com:test_user/%s.git' % name,
+    }
+    repo.update(kwargs)
+    return repo
+
+
 def test_RepoWrangler_list_repos_for_user(mock_requests_get):
     mock_requests_get.update(mock_multi_page_api_responses(
         url='https://api.github.com/users/test_user/repos',
         pages=[
             [
-                {'name': 'xyzzy'},
-                {'name': 'project-foo'},
+                repo('xyzzy'),
+                repo('project-foo'),
             ],
         ],
     ))
     wrangler = ghcloneall.RepoWrangler()
     result = wrangler.list_repos(user='test_user')
     assert result == [
-        {'name': 'project-foo'},
-        {'name': 'xyzzy'},
+        repo('project-foo'),
+        repo('xyzzy'),
     ]
 
 
@@ -681,14 +693,14 @@ def test_RepoWrangler_list_repos_for_org(mock_requests_get):
         url='https://api.github.com/orgs/test_org/repos',
         pages=[
             [
-                {'name': 'xyzzy'},
+                repo('xyzzy'),
             ],
         ],
     ))
     wrangler = ghcloneall.RepoWrangler()
     result = wrangler.list_repos(organization='test_org')
     assert result == [
-        {'name': 'xyzzy'},
+        repo('xyzzy'),
     ]
 
 
@@ -697,15 +709,33 @@ def test_RepoWrangler_list_repos_filter_by_name(mock_requests_get):
         url='https://api.github.com/users/test_user/repos',
         pages=[
             [
-                {'name': 'xyzzy'},
-                {'name': 'project-foo'},
+                repo('xyzzy'),
+                repo('project-foo'),
             ],
         ],
     ))
     wrangler = ghcloneall.RepoWrangler()
     result = wrangler.list_repos(user='test_user', pattern='pr*')
     assert result == [
-        {'name': 'project-foo'},
+        repo('project-foo'),
+    ]
+
+
+def test_RepoWrangler_list_repos_filter_by_status(mock_requests_get):
+    mock_requests_get.update(mock_multi_page_api_responses(
+        url='https://api.github.com/users/test_user/repos',
+        pages=[
+            [
+                repo('a', archived=True),
+                repo('f', fork=True),
+                repo('c'),
+            ],
+        ],
+    ))
+    wrangler = ghcloneall.RepoWrangler()
+    result = wrangler.list_repos(user='test_user')
+    assert result == [
+        repo('c'),
     ]
 
 
@@ -714,10 +744,10 @@ def test_RepoWrangler_list_repos_progress_bar(mock_requests_get):
         url='https://api.github.com/users/test_user/repos',
         pages=[
             [
-                {'name': 'xyzzy'},
+                repo('xyzzy'),
             ],
             [
-                {'name': 'project-foo'},
+                repo('project-foo'),
             ],
         ],
     ))
@@ -726,8 +756,8 @@ def test_RepoWrangler_list_repos_progress_bar(mock_requests_get):
     wrangler = ghcloneall.RepoWrangler(progress=progress)
     result = wrangler.list_repos(user='test_user')
     assert result == [
-        {'name': 'project-foo'},
-        {'name': 'xyzzy'},
+        repo('project-foo'),
+        repo('xyzzy'),
     ]
     compare(
         buf.getvalue(),
@@ -748,10 +778,7 @@ def test_RepoWrangler_repo_task(monkeypatch):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress)
-    task = wrangler.repo_task({
-        'name': 'xyzzy',
-        'ssh_url': 'git@example.com:test_user/xyzzy.git',
-    })
+    task = wrangler.repo_task(repo('xyzzy'))
     compare(
         buf.getvalue(),
         "{brown}+ xyzzy{reset}\n"
@@ -773,10 +800,7 @@ def test_RepoTask_run_updates(monkeypatch, ):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress)
-    task = wrangler.repo_task({
-        'name': 'xyzzy',
-        'ssh_url': 'git@example.com:test_user/xyzzy.git',
-    })
+    task = wrangler.repo_task(repo('xyzzy'))
     responses = ['aaaaa', 'bbbbb']
     task.get_current_commit = lambda dir: responses.pop(0)
     task.get_current_branch = lambda dir: 'master'
@@ -800,10 +824,7 @@ def test_RepoTask_run_handles_errors(monkeypatch):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress)
-    task = wrangler.repo_task({
-        'name': 'xyzzy',
-        'ssh_url': 'git@example.com:test_user/xyzzy.git',
-    })
+    task = wrangler.repo_task(repo('xyzzy'))
     task.clone = raise_exception
     task.run()
     assert show_ansi_result(buf.getvalue()) == (
@@ -822,10 +843,7 @@ def test_RepoTask_run_in_quiet_mode(monkeypatch):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress, quiet=True)
-    task = wrangler.repo_task({
-        'name': 'xyzzy',
-        'ssh_url': 'git@example.com:test_user/xyzzy.git',
-    })
+    task = wrangler.repo_task(repo('xyzzy'))
     task.get_current_branch = lambda dir: 'master'
     task.run()
     assert show_ansi_result(buf.getvalue()) == (
@@ -841,10 +859,7 @@ def test_RepoTask_aborted(monkeypatch):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress, quiet=True)
-    task = wrangler.repo_task({
-        'name': 'xyzzy',
-        'ssh_url': 'git@example.com:test_user/xyzzy.git',
-    })
+    task = wrangler.repo_task(repo('xyzzy'))
     task.get_current_branch = lambda dir: 'master'
     task.aborted()
     assert show_ansi_result(buf.getvalue()) == (
@@ -861,13 +876,9 @@ def test_RepoTask_verify():
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress, verbose=2)
-    task = wrangler.repo_task({
-        'name': 'xyzzy',
-        'clone_url': 'https://example.com/test_user/xyzzy',
-        'ssh_url': 'git@example.com:test_user/xyzzy.git',
-    })
+    task = wrangler.repo_task(repo('xyzzy'))
     task.get_current_branch = lambda dir: 'boo'
-    task.get_remote_url = lambda dir: 'root@example.com:test_user/xyzzy'
+    task.get_remote_url = lambda dir: 'root@github.com:test_user/xyzzy'
     task.has_local_changes = lambda dir: True
     task.has_staged_changes = lambda dir: True
     task.has_local_commits = lambda dir: True
@@ -878,9 +889,9 @@ def test_RepoTask_verify():
         '+ xyzzy (local changes) (staged changes) (local commits)'
         ' (not on master) (wrong remote url)\n'
         '    branch: boo\n'
-        '    remote: root@example.com:test_user/xyzzy.git\n'
-        '    expected: git@example.com:test_user/xyzzy.git\n'
-        '    alternatively: https://example.com/test_user/xyzzy\n'
+        '    remote: root@github.com:test_user/xyzzy.git\n'
+        '    expected: git@github.com:test_user/xyzzy.git\n'
+        '    alternatively: https://github.com/test_user/xyzzy\n'
         "[####################] 1/0"
     )
     assert task.dirty
@@ -890,13 +901,9 @@ def test_RepoTask_verify_unknown_files():
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress, verbose=2)
-    task = wrangler.repo_task({
-        'name': 'xyzzy',
-        'clone_url': 'https://example.com/test_user/xyzzy',
-        'ssh_url': 'git@example.com:test_user/xyzzy.git',
-    })
+    task = wrangler.repo_task(repo('xyzzy'))
     task.get_current_branch = lambda dir: 'master'
-    task.get_remote_url = lambda dir: 'git@example.com:test_user/xyzzy'
+    task.get_remote_url = lambda dir: 'git@github.com:test_user/xyzzy'
     task.get_unknown_files = lambda dir: [
         '.coverage', 'tags', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
     ]
@@ -929,9 +936,7 @@ def test_RepoTask_call_status_handling(mock_subprocess_Popen):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress)
-    task = wrangler.repo_task({
-        'name': 'xyzzy',
-    })
+    task = wrangler.repo_task(repo('xyzzy'))
     mock_subprocess_Popen.rc = 1
     assert task.call(['git', 'diff', '--quiet']) == 1
     # no failure message should be shown because a non-zero status code is
@@ -946,9 +951,7 @@ def test_RepoTask_call_error_handling(mock_subprocess_Popen):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress)
-    task = wrangler.repo_task({
-        'name': 'xyzzy',
-    })
+    task = wrangler.repo_task(repo('xyzzy'))
     mock_subprocess_Popen.stdout = b'oh no\n'
     mock_subprocess_Popen.rc = 0
     assert task.call(['git', 'fail', '--please']) == 0
@@ -964,9 +967,7 @@ def test_RepoTask_call_error_handling_verbose(mock_subprocess_Popen):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress, verbose=1)
-    task = wrangler.repo_task({
-        'name': 'xyzzy',
-    })
+    task = wrangler.repo_task(repo('xyzzy'))
     mock_subprocess_Popen.stdout = b'oh no\n'
     mock_subprocess_Popen.rc = 1
     assert task.call(['git', 'fail', '--please']) == 1
@@ -982,9 +983,7 @@ def test_RepoTask_check_call_status_handling(mock_subprocess_Popen):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress)
-    task = wrangler.repo_task({
-        'name': 'xyzzy',
-    })
+    task = wrangler.repo_task(repo('xyzzy'))
     mock_subprocess_Popen.rc = 1
     task.check_call(['git', 'fail'])
     assert show_ansi_result(buf.getvalue()) == (
@@ -998,9 +997,7 @@ def test_RepoTask_check_call_output_is_shown(mock_subprocess_Popen):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress)
-    task = wrangler.repo_task({
-        'name': 'xyzzy',
-    })
+    task = wrangler.repo_task(repo('xyzzy'))
     mock_subprocess_Popen.stdout = b'oh no\n'
     mock_subprocess_Popen.rc = 0
     task.check_call(['git', 'fail', '--please'])
@@ -1016,9 +1013,7 @@ def test_RepoTask_check_call_status_and_output(mock_subprocess_Popen):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress)
-    task = wrangler.repo_task({
-        'name': 'xyzzy',
-    })
+    task = wrangler.repo_task(repo('xyzzy'))
     mock_subprocess_Popen.stdout = b'oh no\n'
     mock_subprocess_Popen.rc = 1
     task.check_call(['git', 'fail', '--please'])
@@ -1034,9 +1029,7 @@ def test_RepoTask_check_output_error_handling(mock_subprocess_Popen):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress)
-    task = wrangler.repo_task({
-        'name': 'xyzzy',
-    })
+    task = wrangler.repo_task(repo('xyzzy'))
     mock_subprocess_Popen.stdout = b'uh oh\n'
     mock_subprocess_Popen.stderr = b'oh no\n'
     mock_subprocess_Popen.rc = 1
@@ -1053,9 +1046,7 @@ def test_RepoTask_check_output_stderr_without_rc(mock_subprocess_Popen):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress)
-    task = wrangler.repo_task({
-        'name': 'xyzzy',
-    })
+    task = wrangler.repo_task(repo('xyzzy'))
     mock_subprocess_Popen.stdout = b'uh oh\n'
     mock_subprocess_Popen.stderr = b'oh no\n'
     mock_subprocess_Popen.rc = 0
@@ -1076,9 +1067,9 @@ def test_RepoTask_get_current_branch(mock_subprocess_Popen):
 
 def test_RepoTask_get_remote_url(mock_subprocess_Popen):
     task = ghcloneall.RepoTask({}, None, None, None)
-    mock_subprocess_Popen.stdout = b'https://example.com/test_user/xyzzy\n'
+    mock_subprocess_Popen.stdout = b'https://github.com/test_user/xyzzy\n'
     assert task.get_remote_url('xyzzy') == (
-        'https://example.com/test_user/xyzzy'
+        'https://github.com/test_user/xyzzy'
     )
 
 
@@ -1187,14 +1178,8 @@ def test_main_run(monkeypatch, mock_requests_get, capsys):
         url='https://api.github.com/users/mgedmin/repos',
         pages=[
             [
-                {
-                    'name': 'ghcloneall',
-                    'ssh_url': 'git@github.com:mgedmin/ghcloneall.git',
-                },
-                {
-                    'name': 'xyzzy',
-                    'ssh_url': 'git@github.com:mgedmin/xyzzy.git',
-                },
+                repo('ghcloneall'),
+                repo('xyzzy'),
             ],
         ],
     ))
@@ -1214,14 +1199,8 @@ def test_main_run_start_from(monkeypatch, mock_requests_get, capsys):
         url='https://api.github.com/users/mgedmin/repos',
         pages=[
             [
-                {
-                    'name': 'ghcloneall',
-                    'ssh_url': 'git@github.com:mgedmin/ghcloneall.git',
-                },
-                {
-                    'name': 'xyzzy',
-                    'ssh_url': 'git@github.com:mgedmin/xyzzy.git',
-                },
+                repo('ghcloneall'),
+                repo('xyzzy'),
             ],
         ],
     ))
