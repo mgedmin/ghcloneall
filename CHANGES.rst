@@ -2,10 +2,11 @@ Changelog
 =========
 
 
-1.8.1 (unreleased)
+1.9.0 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Can now clone all user's gists.
+- Command line args: --gists, --repos.
 
 
 1.8.0 (2019-08-28)

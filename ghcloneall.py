@@ -12,7 +12,7 @@ import subprocess
 import sys
 import threading
 from concurrent import futures
-from operator import itemgetter
+from operator import attrgetter
 
 try:
     # Python 2
@@ -28,7 +28,7 @@ import requests_cache
 __author__ = 'Marius Gedminas <marius@gedmin.as>'
 __licence__ = 'MIT'
 __url__ = 'https://github.com/mgedmin/ghcloneall'
-__version__ = '1.8.1.dev0'
+__version__ = '1.9.0.dev0'
 
 
 CONFIG_FILE = '.ghcloneallrc'
@@ -343,6 +343,38 @@ class Progress(object):
             self.finish('Interrupted')
 
 
+class Repo(object):
+    def __init__(self, name, clone_url, alt_urls=()):
+        self.name = name
+        self.clone_url = clone_url
+        self.urls = {clone_url}
+        self.urls.update(alt_urls)
+
+    def __repr__(self):
+        return 'Repo({!r}, {!r}, {{{}}})'.format(
+            self.name, self.clone_url, ', '.join(map(repr, sorted(self.urls))))
+
+    def __eq__(self, other):
+        if not isinstance(other, Repo):
+            return False
+        return (
+            self.name, self.clone_url, self.urls,
+        ) == (
+            other.name, other.clone_url, other.urls,
+        )
+
+    @classmethod
+    def from_repo(cls, repo):
+        # use repo['git_url'] for anonymous checkouts, but they'e slower
+        # (at least as long as you use SSH connection multiplexing)
+        clone_url = repo['ssh_url']
+        return cls(repo['name'], clone_url, (repo['clone_url'],))
+
+    @classmethod
+    def from_gist(cls, gist):
+        return cls(gist['id'], gist['git_pull_url'], (gist['git_push_url'],))
+
+
 class RepoWrangler(object):
 
     def __init__(self, dry_run=False, verbose=0, progress=None, quiet=False):
@@ -355,6 +387,26 @@ class RepoWrangler(object):
         self.quiet = quiet
         self.progress = progress if progress else Progress()
         self.lock = threading.Lock()
+
+    def get_github_list(self, list_url, message):
+        self.progress.status(message)
+
+        def progress_callback(n):
+            self.progress.status("{} ({})".format(message, n))
+
+        return get_github_list(list_url, progress_callback=progress_callback)
+
+    def list_gists(self, user, pattern=None):
+        list_url = 'https://api.github.com/users/{}/gists'.format(user)
+        message = "Fetching list of {}'s gists from GitHub...".format(user)
+        gists = self.get_github_list(list_url, message)
+        if pattern:
+            # TBH this is of questionable utility, but maybe you want to clone
+            # a single gist and so you can pass --pattern=id-of-that-gist
+            gists = (g for g in gists if fnmatch.fnmatch(g['id'], pattern))
+        # other possibilities for filtering:
+        # - exclude private gists (if g['public'])
+        return sorted(map(Repo.from_gist, gists), key=attrgetter('name'))
 
     def list_repos(self, user=None, organization=None, pattern=None,
                    include_archived=False, include_forks=False,
@@ -370,10 +422,6 @@ class RepoWrangler(object):
 
         message = "Fetching list of {}'s repositories from GitHub...".format(
             owner)
-        self.progress.status(message)
-
-        def progress_callback(n):
-            self.progress.status("{} ({})".format(message, n))
 
         # User repositories default to sort=full_name, org repositories default
         # to sort=created.  In theory we don't care because we will sort the
@@ -384,7 +432,7 @@ class RepoWrangler(object):
         # and in order for --start-from to be useful).
         list_url += '?sort=full_name'
 
-        repos = get_github_list(list_url, progress_callback=progress_callback)
+        repos = self.get_github_list(list_url, message)
         if not include_archived:
             repos = (r for r in repos if not r['archived'])
         if not include_forks:
@@ -398,10 +446,10 @@ class RepoWrangler(object):
         #   is out of beta
         if pattern:
             repos = (r for r in repos if fnmatch.fnmatch(r['name'], pattern))
-        return sorted(repos, key=itemgetter('name'))
+        return sorted(map(Repo.from_repo, repos), key=attrgetter('name'))
 
     def repo_task(self, repo):
-        item = self.progress.item("+ {name}".format(**repo))
+        item = self.progress.item("+ {name}".format(name=repo.name))
         task = RepoTask(repo, item, self, self.task_finished)
         return task
 
@@ -425,12 +473,10 @@ class RepoTask(object):
         self.dirty = False
 
     def repo_dir(self, repo):
-        return repo['name']
+        return repo.name
 
     def repo_url(self, repo):
-        # use repo['git_url'] for anonymous checkouts, but they'e slower
-        # (at least as long as you use SSH connection multiplexing)
-        return repo['ssh_url']
+        return repo.clone_url
 
     def decode(self, output):
         return output.decode('UTF-8', 'replace')
@@ -569,15 +615,17 @@ class RepoTask(object):
             remote_url = self.get_remote_url(dir)
             if not remote_url.endswith('.git'):
                 remote_url += '.git'
-            if remote_url not in (repo['ssh_url'], repo['clone_url']):
+            if remote_url not in repo.urls:
                 self.progress_item.update(' (wrong remote url)')
                 if self.options.verbose >= 2:
                     self.progress_item.extra_info(
                         'remote: {}'.format(remote_url))
                     self.progress_item.extra_info(
-                        'expected: {ssh_url}'.format(**repo))
-                    self.progress_item.extra_info(
-                        'alternatively: {clone_url}'.format(**repo))
+                        'expected: {}'.format(repo.clone_url))
+                    for url in repo.urls:
+                        if url != repo.clone_url:
+                            self.progress_item.extra_info(
+                                'alternatively: {}'.format(url))
                 self.dirty = True
         if self.options.verbose:
             unknown_files = self.get_unknown_files(dir)
@@ -724,6 +772,12 @@ def _main():
         '--user',
         help='specify the GitHub user')
     parser.add_argument(
+        '--gists', action='store_true', default=None,
+        help="clone user's gists")
+    parser.add_argument(
+        '--repositories', action='store_false', dest='gists',
+        help="clone user's or organisation's repositories (default)")
+    parser.add_argument(
         '--pattern',
         help='specify repository name glob pattern to filter')
     parser.add_argument(
@@ -777,6 +831,9 @@ def _main():
     if not args.pattern:
         if config.has_option(CONFIG_SECTION, 'pattern'):
             args.pattern = config.get(CONFIG_SECTION, 'pattern')
+    if args.gists is None:
+        if config.has_option(CONFIG_SECTION, 'gists'):
+            args.gists = config.getboolean(CONFIG_SECTION, 'gists')
     if args.include_forks is None:
         if config.has_option(CONFIG_SECTION, 'include_forks'):
             args.include_forks = config.getboolean(CONFIG_SECTION,
@@ -800,6 +857,9 @@ def _main():
     if not args.user and not args.organization:
         parser.error(
             "Please specify either --user or --organization")
+    if args.gists and not args.user:
+        parser.error(
+            "Please specify --user, not --organization, when using --gists")
 
     if args.init:
         config.remove_section(CONFIG_SECTION)
@@ -810,6 +870,8 @@ def _main():
             config.set(CONFIG_SECTION, 'github_org', args.organization)
         if args.pattern:
             config.set(CONFIG_SECTION, 'pattern', args.pattern)
+        if args.gists is not None:
+            config.set(CONFIG_SECTION, 'gists', str(args.gists))
         if args.include_forks is not None:
             config.set(CONFIG_SECTION, 'include_forks',
                        str(args.include_forks))
@@ -846,15 +908,21 @@ def _main():
     with Progress() as progress:
         wrangler = RepoWrangler(dry_run=args.dry_run, verbose=args.verbose,
                                 progress=progress, quiet=args.quiet)
-        repos = wrangler.list_repos(
-            organization=args.organization,
-            user=args.user,
-            pattern=args.pattern,
-            include_forks=args.include_forks,
-            include_archived=args.include_archived,
-            include_private=args.include_private,
-            include_disabled=args.include_disabled,
-        )
+        if args.gists:
+            repos = wrangler.list_gists(
+                user=args.user,
+                pattern=args.pattern,
+            )
+        else:
+            repos = wrangler.list_repos(
+                organization=args.organization,
+                user=args.user,
+                pattern=args.pattern,
+                include_forks=args.include_forks,
+                include_archived=args.include_archived,
+                include_private=args.include_private,
+                include_disabled=args.include_disabled,
+            )
         progress.set_limit(len(repos))
         if args.concurrency < 2:
             queue = SequentialJobQueue()
@@ -862,7 +930,7 @@ def _main():
             queue = ConcurrentJobQueue(args.concurrency)
         with queue:
             for repo in repos:
-                if args.start_from and repo['name'] < args.start_from:
+                if args.start_from and repo.name < args.start_from:
                     progress.item()
                     continue
                 task = wrangler.repo_task(repo)

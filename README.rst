@@ -19,6 +19,13 @@ Clone all mgedmin's vim plugins::
     ghcloneall --init --user mgedmin --pattern '*.vim'
     ghcloneall
 
+Clone all mgedmin's gists::
+
+    mkdir ~/src/gists
+    cd ~/src/gists
+    ghcloneall --init --user mgedmin --gists
+    ghcloneall
+
 Clone all ZopeFoundation repositories::
 
     mkdir ~/src/zf
@@ -66,11 +73,11 @@ Other command-line options::
     $ ghcloneall --help
     usage: ghcloneall [-h] [--version] [-c CONCURRENCY] [-n] [-q] [-v]
                       [--start-from REPO] [--organization ORGANIZATION]
-                      [--user USER] [--pattern PATTERN] [--include-forks]
-                      [--exclude-forks] [--include-archived] [--exclude-archived]
-                      [--include-private] [--exclude-private] [--include-disabled]
-                      [--exclude-disabled] [--init] [--http-cache DBNAME]
-                      [--no-http-cache]
+                      [--user USER] [--gists] [--repositories] [--pattern PATTERN]
+                      [--include-forks] [--exclude-forks] [--include-archived]
+                      [--exclude-archived] [--include-private] [--exclude-private]
+                      [--include-disabled] [--exclude-disabled] [--init]
+                      [--http-cache DBNAME] [--no-http-cache]
 
     Clone/update all user/org repositories from GitHub.
 
@@ -87,6 +94,8 @@ Other command-line options::
       --organization ORGANIZATION
                             specify the GitHub organization
       --user USER           specify the GitHub user
+      --gists               clone user's gists
+      --repositories        clone user's or organisation's repositories (default)
       --pattern PATTERN     specify repository name glob pattern to filter
       --include-forks       include repositories forked from other users/orgs
       --exclude-forks       exclude repositories forked from other users/orgs
@@ -98,8 +107,8 @@ Other command-line options::
       --include-disabled    include disabled repositories (default)
       --exclude-disabled    exclude disabled repositories
       --init                create a .ghcloneallrc from command-line arguments
-      --http-cache DBNAME   cache HTTP requests on disk in an sqlite database
-                            for 5 minutes (default: .httpcache)
+      --http-cache DBNAME   cache HTTP requests on disk in an sqlite database for
+                            5 minutes (default: .httpcache)
       --no-http-cache       disable HTTP disk caching
 
 
@@ -115,12 +124,14 @@ should look like this::
     github_user = mgedmin
     pattern = *.vim
     # You can also uncomment and change these if you wish
+    # gists = False
     # include_forks = False
     # include_archived = False
     # include_private = True
     # include_disabled = True
 
-You can create one with ``ghcloneall --init --{user,org} X [--pattern Y] [--{include,exclude}-{forks,archived,private,disabled}]``.
+You can create one with ``ghcloneall --init --{user,org} X [--pattern Y]
+[--{include,exclude}-{forks,archived,private,disabled}] [--gists|--repos]``.
 
 
 Tips

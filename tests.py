@@ -98,21 +98,21 @@ def mock_config_filename(monkeypatch):
     monkeypatch.setattr(ghcloneall, 'CONFIG_FILE', '/dev/null')
 
 
-def make_page_url(url, page):
+def make_page_url(url, page, extra):
     if page == 1:
-        return '%s?sort=full_name&per_page=100' % url
+        return '%s?%sper_page=100' % (url, extra)
     else:
-        return '%s?sort=full_name&page=%d&per_page=100' % (url, page)
+        return '%s?%spage=%d&per_page=100' % (url, extra, page)
 
 
-def mock_multi_page_api_responses(url, pages):
+def mock_multi_page_api_responses(url, pages, extra='sort=full_name&'):
     assert len(pages) > 0
     responses = {}
     for n, page in enumerate(pages, 1):
-        page_url = make_page_url(url, n)
+        page_url = make_page_url(url, n, extra)
         links = {}
         if n != len(pages):
-            next_page_url = make_page_url(url, n + 1)
+            next_page_url = make_page_url(url, n + 1, extra)
             links['next'] = next_page_url
         responses[page_url] = MockResponse(json=page, links=links)
     return responses
@@ -658,6 +658,75 @@ def test_Progress_extra_info_not_last_item_redraws_all_below(capsys):
     )
 
 
+def test_Repo():
+    r1 = ghcloneall.Repo('foo', 'git@github.com:test_user/foo.git',
+                         ['https://github.com/test_user/foo'])
+    r2 = ghcloneall.Repo('foo', 'git@github.com:test_user/foo.git',
+                         ['https://github.com/test_user/foo'])
+    r3 = ghcloneall.Repo('bar', 'git@github.com:test_user/bar.git',
+                         ['https://github.com/test_user/bar'])
+    assert r1 == r2
+    assert r1 != r3
+    assert r1 != 'foo'
+    assert repr(r1) == (
+        "Repo('foo', 'git@github.com:test_user/foo.git',"
+        " {'git@github.com:test_user/foo.git',"
+        " 'https://github.com/test_user/foo'})"
+    )
+
+
+def gist(name, **kwargs):
+    repo = {
+        'id': name,
+        'public': True,
+        'git_pull_url': 'https://gist.github.com/%s.git' % name,
+        'git_push_url': 'https://gist.github.com/%s.git' % name,
+    }
+    repo.update(kwargs)
+    return repo
+
+
+def Gist(name, **kwargs):
+    return ghcloneall.Repo.from_gist(gist(name, **kwargs))
+
+
+def test_RepoWrangler_list_gists(mock_requests_get):
+    mock_requests_get.update(mock_multi_page_api_responses(
+        url='https://api.github.com/users/test_user/gists',
+        extra='',
+        pages=[
+            [
+                gist('9999'),
+                gist('1234'),
+            ],
+        ],
+    ))
+    wrangler = ghcloneall.RepoWrangler()
+    result = wrangler.list_gists(user='test_user')
+    assert result == [
+        Gist('1234'),
+        Gist('9999'),
+    ]
+
+
+def test_RepoWrangler_list_gists_filtering(mock_requests_get):
+    mock_requests_get.update(mock_multi_page_api_responses(
+        url='https://api.github.com/users/test_user/gists',
+        extra='',
+        pages=[
+            [
+                gist('9999'),
+                gist('1234'),
+            ],
+        ],
+    ))
+    wrangler = ghcloneall.RepoWrangler()
+    result = wrangler.list_gists(user='test_user', pattern='9*')
+    assert result == [
+        Gist('9999'),
+    ]
+
+
 def repo(name, **kwargs):
     repo = {
         'name': name,
@@ -670,6 +739,10 @@ def repo(name, **kwargs):
     }
     repo.update(kwargs)
     return repo
+
+
+def Repo(name, **kwargs):
+    return ghcloneall.Repo.from_repo(repo(name, **kwargs))
 
 
 def test_RepoWrangler_list_repos_for_user(mock_requests_get):
@@ -685,8 +758,8 @@ def test_RepoWrangler_list_repos_for_user(mock_requests_get):
     wrangler = ghcloneall.RepoWrangler()
     result = wrangler.list_repos(user='test_user')
     assert result == [
-        repo('project-foo'),
-        repo('xyzzy'),
+        Repo('project-foo'),
+        Repo('xyzzy'),
     ]
 
 
@@ -702,7 +775,7 @@ def test_RepoWrangler_list_repos_for_org(mock_requests_get):
     wrangler = ghcloneall.RepoWrangler()
     result = wrangler.list_repos(organization='test_org')
     assert result == [
-        repo('xyzzy'),
+        Repo('xyzzy'),
     ]
 
 
@@ -719,7 +792,7 @@ def test_RepoWrangler_list_repos_filter_by_name(mock_requests_get):
     wrangler = ghcloneall.RepoWrangler()
     result = wrangler.list_repos(user='test_user', pattern='pr*')
     assert result == [
-        repo('project-foo'),
+        Repo('project-foo'),
     ]
 
 
@@ -739,32 +812,32 @@ def test_RepoWrangler_list_repos_filter_by_status(mock_requests_get):
     wrangler = ghcloneall.RepoWrangler()
     result = wrangler.list_repos(user='test_user')
     assert result == [
-        repo('c'),
-        repo('d', private=True, disabled=True),
-        repo('p', private=True),
+        Repo('c'),
+        Repo('d', private=True, disabled=True),
+        Repo('p', private=True),
     ]
     result = wrangler.list_repos(user='test_user', include_archived=True)
     assert result == [
-        repo('a', archived=True),
-        repo('c'),
-        repo('d', private=True, disabled=True),
-        repo('p', private=True),
+        Repo('a', archived=True),
+        Repo('c'),
+        Repo('d', private=True, disabled=True),
+        Repo('p', private=True),
     ]
     result = wrangler.list_repos(user='test_user', include_forks=True)
     assert result == [
-        repo('c'),
-        repo('d', private=True, disabled=True),
-        repo('f', fork=True),
-        repo('p', private=True),
+        Repo('c'),
+        Repo('d', private=True, disabled=True),
+        Repo('f', fork=True),
+        Repo('p', private=True),
     ]
     result = wrangler.list_repos(user='test_user', include_disabled=False)
     assert result == [
-        repo('c'),
-        repo('p', private=True),
+        Repo('c'),
+        Repo('p', private=True),
     ]
     result = wrangler.list_repos(user='test_user', include_private=False)
     assert result == [
-        repo('c'),
+        Repo('c'),
     ]
 
 
@@ -785,8 +858,8 @@ def test_RepoWrangler_list_repos_progress_bar(mock_requests_get):
     wrangler = ghcloneall.RepoWrangler(progress=progress)
     result = wrangler.list_repos(user='test_user')
     assert result == [
-        repo('project-foo'),
-        repo('xyzzy'),
+        Repo('project-foo'),
+        Repo('xyzzy'),
     ]
     compare(
         buf.getvalue(),
@@ -807,7 +880,7 @@ def test_RepoWrangler_repo_task(monkeypatch):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress)
-    task = wrangler.repo_task(repo('xyzzy'))
+    task = wrangler.repo_task(Repo('xyzzy'))
     compare(
         buf.getvalue(),
         "{brown}+ xyzzy{reset}\n"
@@ -829,7 +902,7 @@ def test_RepoTask_run_updates(monkeypatch, ):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress)
-    task = wrangler.repo_task(repo('xyzzy'))
+    task = wrangler.repo_task(Repo('xyzzy'))
     responses = ['aaaaa', 'bbbbb']
     task.get_current_commit = lambda dir: responses.pop(0)
     task.get_current_branch = lambda dir: 'master'
@@ -853,7 +926,7 @@ def test_RepoTask_run_handles_errors(monkeypatch):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress)
-    task = wrangler.repo_task(repo('xyzzy'))
+    task = wrangler.repo_task(Repo('xyzzy'))
     task.clone = raise_exception
     task.run()
     assert show_ansi_result(buf.getvalue()) == (
@@ -872,7 +945,7 @@ def test_RepoTask_run_in_quiet_mode(monkeypatch):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress, quiet=True)
-    task = wrangler.repo_task(repo('xyzzy'))
+    task = wrangler.repo_task(Repo('xyzzy'))
     task.get_current_branch = lambda dir: 'master'
     task.run()
     assert show_ansi_result(buf.getvalue()) == (
@@ -888,7 +961,7 @@ def test_RepoTask_aborted(monkeypatch):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress, quiet=True)
-    task = wrangler.repo_task(repo('xyzzy'))
+    task = wrangler.repo_task(Repo('xyzzy'))
     task.get_current_branch = lambda dir: 'master'
     task.aborted()
     assert show_ansi_result(buf.getvalue()) == (
@@ -905,7 +978,7 @@ def test_RepoTask_verify():
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress, verbose=2)
-    task = wrangler.repo_task(repo('xyzzy'))
+    task = wrangler.repo_task(Repo('xyzzy'))
     task.get_current_branch = lambda dir: 'boo'
     task.get_remote_url = lambda dir: 'root@github.com:test_user/xyzzy'
     task.has_local_changes = lambda dir: True
@@ -930,7 +1003,7 @@ def test_RepoTask_verify_unknown_files():
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress, verbose=2)
-    task = wrangler.repo_task(repo('xyzzy'))
+    task = wrangler.repo_task(Repo('xyzzy'))
     task.get_current_branch = lambda dir: 'master'
     task.get_remote_url = lambda dir: 'git@github.com:test_user/xyzzy'
     task.get_unknown_files = lambda dir: [
@@ -965,7 +1038,7 @@ def test_RepoTask_call_status_handling(mock_subprocess_Popen):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress)
-    task = wrangler.repo_task(repo('xyzzy'))
+    task = wrangler.repo_task(Repo('xyzzy'))
     mock_subprocess_Popen.rc = 1
     assert task.call(['git', 'diff', '--quiet']) == 1
     # no failure message should be shown because a non-zero status code is
@@ -980,7 +1053,7 @@ def test_RepoTask_call_error_handling(mock_subprocess_Popen):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress)
-    task = wrangler.repo_task(repo('xyzzy'))
+    task = wrangler.repo_task(Repo('xyzzy'))
     mock_subprocess_Popen.stdout = b'oh no\n'
     mock_subprocess_Popen.rc = 0
     assert task.call(['git', 'fail', '--please']) == 0
@@ -996,7 +1069,7 @@ def test_RepoTask_call_error_handling_verbose(mock_subprocess_Popen):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress, verbose=1)
-    task = wrangler.repo_task(repo('xyzzy'))
+    task = wrangler.repo_task(Repo('xyzzy'))
     mock_subprocess_Popen.stdout = b'oh no\n'
     mock_subprocess_Popen.rc = 1
     assert task.call(['git', 'fail', '--please']) == 1
@@ -1012,7 +1085,7 @@ def test_RepoTask_check_call_status_handling(mock_subprocess_Popen):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress)
-    task = wrangler.repo_task(repo('xyzzy'))
+    task = wrangler.repo_task(Repo('xyzzy'))
     mock_subprocess_Popen.rc = 1
     task.check_call(['git', 'fail'])
     assert show_ansi_result(buf.getvalue()) == (
@@ -1026,7 +1099,7 @@ def test_RepoTask_check_call_output_is_shown(mock_subprocess_Popen):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress)
-    task = wrangler.repo_task(repo('xyzzy'))
+    task = wrangler.repo_task(Repo('xyzzy'))
     mock_subprocess_Popen.stdout = b'oh no\n'
     mock_subprocess_Popen.rc = 0
     task.check_call(['git', 'fail', '--please'])
@@ -1042,7 +1115,7 @@ def test_RepoTask_check_call_status_and_output(mock_subprocess_Popen):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress)
-    task = wrangler.repo_task(repo('xyzzy'))
+    task = wrangler.repo_task(Repo('xyzzy'))
     mock_subprocess_Popen.stdout = b'oh no\n'
     mock_subprocess_Popen.rc = 1
     task.check_call(['git', 'fail', '--please'])
@@ -1058,7 +1131,7 @@ def test_RepoTask_check_output_error_handling(mock_subprocess_Popen):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress)
-    task = wrangler.repo_task(repo('xyzzy'))
+    task = wrangler.repo_task(Repo('xyzzy'))
     mock_subprocess_Popen.stdout = b'uh oh\n'
     mock_subprocess_Popen.stderr = b'oh no\n'
     mock_subprocess_Popen.rc = 1
@@ -1075,7 +1148,7 @@ def test_RepoTask_check_output_stderr_without_rc(mock_subprocess_Popen):
     buf = StringIO()
     progress = ghcloneall.Progress(stream=buf)
     wrangler = ghcloneall.RepoWrangler(progress=progress)
-    task = wrangler.repo_task(repo('xyzzy'))
+    task = wrangler.repo_task(Repo('xyzzy'))
     mock_subprocess_Popen.stdout = b'uh oh\n'
     mock_subprocess_Popen.stderr = b'oh no\n'
     mock_subprocess_Popen.rc = 0
@@ -1186,6 +1259,18 @@ def test_main_conflicting_args(monkeypatch, capsys):
     )
 
 
+def test_main_no_org_gists(monkeypatch, capsys):
+    monkeypatch.setattr(sys, 'argv', [
+        'ghcloneall', '--gists', '--org', 'bar',
+    ])
+    with pytest.raises(SystemExit):
+        ghcloneall.main()
+    assert (
+        'Please specify --user, not --organization, when using --gists'
+        in capsys.readouterr().err
+    )
+
+
 def test_main_run_error_handling(monkeypatch, capsys):
     monkeypatch.setattr(sys, 'argv', [
         'ghcloneall', '--user', 'mgedmin',
@@ -1242,6 +1327,26 @@ def test_main_run_start_from(monkeypatch, mock_requests_get, capsys):
     )
 
 
+def test_main_run_gists(monkeypatch, mock_requests_get, capsys):
+    monkeypatch.setattr(sys, 'argv', [
+        'ghcloneall', '--user', 'mgedmin', '--gists', '--concurrency=1',
+    ])
+    mock_requests_get.update(mock_multi_page_api_responses(
+        url='https://api.github.com/users/mgedmin/gists',
+        extra='',
+        pages=[
+            [
+                gist('1234'),
+            ],
+        ],
+    ))
+    ghcloneall.main()
+    assert show_ansi_result(capsys.readouterr().out) == (
+        '+ 1234 (new)\n'
+        '1 repositories: 0 updated, 1 new, 0 dirty.'
+    )
+
+
 @pytest.fixture()
 def config_writes_allowed(mock_config_filename, monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
@@ -1272,6 +1377,22 @@ def test_main_init(monkeypatch, capsys, config_writes_allowed):
         '[ghcloneall]\n'
         'github_user = mgedmin\n'
         'pattern = *.vim\n'
+        '\n'
+    )
+
+
+def test_main_init_gists(monkeypatch, capsys, config_writes_allowed):
+    monkeypatch.setattr(sys, 'argv', [
+        'ghcloneall', '--init', '--user', 'mgedmin', '--gists',
+    ])
+    ghcloneall.main()
+    assert capsys.readouterr().out == (
+        'Wrote .ghcloneallrc\n'
+    )
+    assert config_writes_allowed.read_text() == (
+        '[ghcloneall]\n'
+        'github_user = mgedmin\n'
+        'gists = True\n'
         '\n'
     )
 
@@ -1317,6 +1438,7 @@ def test_main_reads_config_file(monkeypatch, capsys, config_writes_allowed):
         u'[ghcloneall]\n'
         u'github_user = mgedmin\n'
         u'github_org = gtimelog\n'
+        u'gists = False\n'
         u'pattern = *.vim\n'
         u'include_forks = True\n'
         u'include_archived = False\n'
