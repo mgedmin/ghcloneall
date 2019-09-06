@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-1.9.0 (unreleased)
+1.9.0 (2019-09-06)
 ------------------
 
 - Can now clone all user's gists.
