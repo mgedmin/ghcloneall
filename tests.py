@@ -666,8 +666,11 @@ def test_Repo():
     r3 = ghcloneall.Repo('bar', 'git@github.com:test_user/bar.git',
                          ['https://github.com/test_user/bar'])
     assert r1 == r2
+    assert not r1 != r2
     assert r1 != r3
+    assert not r1 == r3
     assert r1 != 'foo'
+    assert not r1 == 'foo'
     assert repr(r1) == (
         "Repo('foo', 'git@github.com:test_user/foo.git',"
         " {'git@github.com:test_user/foo.git',"

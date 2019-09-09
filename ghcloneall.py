@@ -363,6 +363,9 @@ class Repo(object):
             other.name, other.clone_url, other.urls,
         )
 
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     @classmethod
     def from_repo(cls, repo):
         # use repo['git_url'] for anonymous checkouts, but they'e slower
