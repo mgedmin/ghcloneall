@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-1.9.1 (unreleased)
+1.9.1 (2019-10-07)
 ------------------
 
 - Reuse HTTP connections for GitHub API requests.
