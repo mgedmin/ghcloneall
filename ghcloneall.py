@@ -44,12 +44,13 @@ class Error(Exception):
     """An error that is not a bug in this script."""
 
 
-def get_json_and_links(url):
+def get_json_and_links(url, session=None):
     """Perform HTTP GET for a URL, return deserialized JSON and headers.
 
     Returns a tuple (json_data, links) where links is something dict-like.
     """
-    r = requests.get(url, headers={'user-agent': USER_AGENT})
+    session = requests.Session() if session is None else session
+    r = session.get(url, headers={'user-agent': USER_AGENT})
     # When we get a JSON error response fron GitHub, we want to show that
     # message to the user instead of a traceback.  I expect it'll be something
     # like "rate limit exceeded, try again in N minutes".
@@ -61,7 +62,7 @@ def get_json_and_links(url):
     return r.json(), r.links
 
 
-def get_github_list(url, batch_size=100, progress_callback=None):
+def get_github_list(url, batch_size=100, progress_callback=None, session=None):
     """Perform (a series of) HTTP GETs for a URL, return deserialized JSON.
 
     Format of the JSON is documented at
@@ -74,9 +75,10 @@ def get_github_list(url, batch_size=100, progress_callback=None):
               <https://api.github.com/resource?page=5>; rel="last"
 
     """
+    session = requests.Session() if session is None else session
     # API documented at http://developer.github.com/v3/#pagination
     res, links = get_json_and_links('{}{}per_page={}'.format(
-        url, '&' if '?' in url else '?', batch_size))
+        url, '&' if '?' in url else '?', batch_size), session)
     while 'next' in links:
         if progress_callback:
             progress_callback(len(res))

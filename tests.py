@@ -53,6 +53,7 @@ class MockRequestGet:
 def mock_requests_get(monkeypatch):
     mock_get = MockRequestGet()
     monkeypatch.setattr(requests, 'get', mock_get)
+    monkeypatch.setattr(requests.Session, 'get', mock_get)
     return mock_get
 
 

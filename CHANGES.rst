@@ -5,7 +5,7 @@ Changelog
 1.9.1 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Reuse HTTP connections for GitHub API requests.
 
 
 1.9.0 (2019-09-06)
