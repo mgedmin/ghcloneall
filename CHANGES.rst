@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-1.9.2 (unreleased)
+1.9.2 (2019-10-15)
 ------------------
 
 - Add support for Python 3.8.

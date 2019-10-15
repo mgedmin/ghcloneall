@@ -17,4 +17,5 @@ coverage:
 flake8:
 	tox -e flake8
 
+DISTCHECK_DIFF_OPTS = $(DISTCHECK_DIFF_DEFAULT_OPTS) -x .github
 include release.mk

@@ -8,4 +8,4 @@ include LICENCE
 include Makefile
 include pytest.ini
 include tox.ini
-include .github/*
+prune .github
