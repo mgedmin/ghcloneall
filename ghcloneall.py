@@ -370,7 +370,7 @@ class Repo(object):
 
     @classmethod
     def from_repo(cls, repo):
-        # use repo['git_url'] for anonymous checkouts, but they'e slower
+        # use repo['git_url'] for anonymous checkouts, but they're slower
         # (at least as long as you use SSH connection multiplexing)
         clone_url = repo['ssh_url']
         return cls(repo['name'], clone_url, (repo['clone_url'],))
