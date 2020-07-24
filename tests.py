@@ -694,6 +694,12 @@ def Gist(name, **kwargs):
     return ghcloneall.Repo.from_gist(gist(name, **kwargs))
 
 
+def test_RepoWrangler_auth():
+    token = 'UNITTEST'
+    wrangler = ghcloneall.RepoWrangler(token=token)
+    assert wrangler.session.auth == ('', token)
+
+
 def test_RepoWrangler_list_gists(mock_requests_get):
     mock_requests_get.update(mock_multi_page_api_responses(
         url='https://api.github.com/users/test_user/gists',
