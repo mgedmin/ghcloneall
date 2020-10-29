@@ -1,6 +1,9 @@
 ghcloneall
 ==========
 
+.. image:: https://travis-ci.com/mgedmin/ghcloneall.svg?branch=master
+    :target: https://travis-ci.com/mgedmin/ghcloneall
+
 It's a script to clone/update all repos for a user/organization from GitHub.
 
 Target audience: maintainers of large collections of projects (for example,
