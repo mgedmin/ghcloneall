@@ -5,6 +5,8 @@ Changelog
 1.9.3 (unreleased)
 ------------------
 
+- Add support for Python 3.9.
+
 - Drop support for Python 3.5.
 
 
