@@ -1,8 +1,8 @@
 ghcloneall
 ==========
 
-.. image:: https://travis-ci.com/mgedmin/ghcloneall.svg?branch=master
-    :target: https://travis-ci.com/mgedmin/ghcloneall
+.. image:: https://github.com/mgedmin/ghcloneall/workflows/build/badge.svg?branch=master
+    :target: https://github.com/mgedmin/ghcloneall/actions
 
 .. image:: https://ci.appveyor.com/api/projects/status/github/mgedmin/ghcloneall?branch=master&svg=true
     :target: https://ci.appveyor.com/project/mgedmin/ghcloneall
