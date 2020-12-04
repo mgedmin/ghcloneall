@@ -3,6 +3,7 @@ import re
 import subprocess
 import sys
 
+
 try:
     from cStringIO import StringIO
 except ImportError:  # pragma: PY3

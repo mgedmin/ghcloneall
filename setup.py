@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 import ast
 import os
+
 from setuptools import setup
+
 
 here = os.path.dirname(__file__)
 metadata = {}

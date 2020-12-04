@@ -85,6 +85,7 @@ jobs:
       matrix:
         toxenv:
           - flake8
+          - isort
 
     steps:
       - name: Git clone
