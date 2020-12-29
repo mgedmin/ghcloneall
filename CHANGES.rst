@@ -5,7 +5,7 @@ Changelog
 1.9.3 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Allow authentication with github token
 
 
 1.9.2 (2019-10-15)
