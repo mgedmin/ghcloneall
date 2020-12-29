@@ -2,20 +2,18 @@
 all:
 	@echo "Nothing to build."
 
-
-.PHONY: test check
-test check:
+.PHONY: test
+test:                           ##: run tests
 	tox -p auto
 
-
 .PHONY: coverage
-coverage:
+coverage:                       ##: measure test coverage
 	tox -e coverage
 
-
 .PHONY: flake8
-flake8:
+flake8:                         ##: check for style problems
 	tox -e flake8
 
-DISTCHECK_DIFF_OPTS = $(DISTCHECK_DIFF_DEFAULT_OPTS) -x .github
+
+FILE_WITH_VERSION = ghcloneall.py
 include release.mk

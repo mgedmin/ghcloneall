@@ -1,6 +1,13 @@
 ghcloneall
 ==========
 
+.. image:: https://github.com/mgedmin/ghcloneall/workflows/build/badge.svg?branch=master
+    :target: https://github.com/mgedmin/ghcloneall/actions
+
+.. image:: https://ci.appveyor.com/api/projects/status/github/mgedmin/ghcloneall?branch=master&svg=true
+    :target: https://ci.appveyor.com/project/mgedmin/ghcloneall
+
+
 It's a script to clone/update all repos for a user/organization from GitHub.
 
 Target audience: maintainers of large collections of projects (for example,

@@ -6,6 +6,8 @@ Changelog
 ------------------
 
 - Allow authentication with github token
+- Add support for Python 3.9.
+- Drop support for Python 3.5.
 
 
 1.9.2 (2019-10-15)

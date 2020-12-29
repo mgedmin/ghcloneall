@@ -1,12 +1,13 @@
 language: python
-dist: xenial
+dist: focal
+cache: pip
 python:
   - 2.7
-  - 3.5
   - 3.6
   - 3.7
   - 3.8
-  - pypy
+  - 3.9
+  - pypy2
   - pypy3
 install:
   - pip install pytest coverage coverage-python-version coveralls flake8
@@ -17,6 +18,13 @@ script:
   - coverage report -m $([[ $TRAVIS_PYTHON_VERSION != pypy3 ]] && echo --fail-under=100)
 after_success:
   - coveralls
+
 notifications:
-  email: false
-cache: pip
+  irc:
+    channels:
+      - "chat.freenode.net##mgedmin"
+    on_success: change
+    on_failure: always
+    template:
+      # ping my nick so I get a pushbullet notification on my phone
+      - "mgedmin: %{repository_name} (%{branch}) build %{result}: %{build_url}"
