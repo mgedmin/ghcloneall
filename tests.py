@@ -1423,6 +1423,21 @@ def test_main_init_org(monkeypatch, capsys, config_writes_allowed):
     )
 
 
+def test_main_init_org_token(monkeypatch, capsys, config_writes_allowed):
+    monkeypatch.setattr(sys, 'argv', [
+        'ghcloneall', '--init', '--org', 'gtimelog', '--github-token', 'UNITTEST'
+    ])
+    ghcloneall.main()
+    assert capsys.readouterr().out == (
+        'Wrote .ghcloneallrc\n'
+    )
+    assert config_writes_allowed.read_text() == (
+        '[ghcloneall]\n'
+        'github_org = gtimelog\n'
+        'github_token = UNITTEST\n'
+        '\n'
+    )
+
 def test_main_init_filter_flags(monkeypatch, capsys, config_writes_allowed):
     monkeypatch.setattr(sys, 'argv', [
         'ghcloneall', '--init', '--org', 'gtimelog',
@@ -1449,6 +1464,7 @@ def test_main_reads_config_file(monkeypatch, capsys, config_writes_allowed):
         u'[ghcloneall]\n'
         u'github_user = mgedmin\n'
         u'github_org = gtimelog\n'
+        u'github_token = UNITTEST\n'
         u'gists = False\n'
         u'pattern = *.vim\n'
         u'include_forks = True\n'
