@@ -1425,7 +1425,8 @@ def test_main_init_org(monkeypatch, capsys, config_writes_allowed):
 
 def test_main_init_org_token(monkeypatch, capsys, config_writes_allowed):
     monkeypatch.setattr(sys, 'argv', [
-        'ghcloneall', '--init', '--org', 'gtimelog', '--github-token', 'UNITTEST'
+        'ghcloneall', '--init', '--org', 'gtimelog', '--github-token',
+        'UNITTEST'
     ])
     ghcloneall.main()
     assert capsys.readouterr().out == (
@@ -1437,6 +1438,7 @@ def test_main_init_org_token(monkeypatch, capsys, config_writes_allowed):
         'github_token = UNITTEST\n'
         '\n'
     )
+
 
 def test_main_init_filter_flags(monkeypatch, capsys, config_writes_allowed):
     monkeypatch.setattr(sys, 'argv', [
