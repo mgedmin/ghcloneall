@@ -842,6 +842,9 @@ def _main():
             args.user = config.get(CONFIG_SECTION, 'github_user')
         if config.has_option(CONFIG_SECTION, 'github_org'):
             args.organization = config.get(CONFIG_SECTION, 'github_org')
+    if not args.github_token:
+        if config.has_option(CONFIG_SECTION, 'github_token'):
+            args.github_token = config.get(CONFIG_SECTION, 'github_token')
     if not args.pattern:
         if config.has_option(CONFIG_SECTION, 'pattern'):
             args.pattern = config.get(CONFIG_SECTION, 'pattern')
@@ -882,6 +885,8 @@ def _main():
             config.set(CONFIG_SECTION, 'github_user', args.user)
         if args.organization:
             config.set(CONFIG_SECTION, 'github_org', args.organization)
+        if args.github_token:
+            config.set(CONFIG_SECTION, 'github_token', args.github_token)
         if args.pattern:
             config.set(CONFIG_SECTION, 'pattern', args.pattern)
         if args.gists is not None:
