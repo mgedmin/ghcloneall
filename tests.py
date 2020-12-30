@@ -695,6 +695,12 @@ def Gist(name, **kwargs):
     return ghcloneall.Repo.from_gist(gist(name, **kwargs))
 
 
+def test_RepoWrangler_auth():
+    token = 'UNITTEST'
+    wrangler = ghcloneall.RepoWrangler(token=token)
+    assert wrangler.session.auth == ('', token)
+
+
 def test_RepoWrangler_list_gists(mock_requests_get):
     mock_requests_get.update(mock_multi_page_api_responses(
         url='https://api.github.com/users/test_user/gists',
@@ -1417,6 +1423,23 @@ def test_main_init_org(monkeypatch, capsys, config_writes_allowed):
     )
 
 
+def test_main_init_org_token(monkeypatch, capsys, config_writes_allowed):
+    monkeypatch.setattr(sys, 'argv', [
+        'ghcloneall', '--init', '--org', 'gtimelog', '--github-token',
+        'UNITTEST'
+    ])
+    ghcloneall.main()
+    assert capsys.readouterr().out == (
+        'Wrote .ghcloneallrc\n'
+    )
+    assert config_writes_allowed.read_text() == (
+        '[ghcloneall]\n'
+        'github_org = gtimelog\n'
+        'github_token = UNITTEST\n'
+        '\n'
+    )
+
+
 def test_main_init_filter_flags(monkeypatch, capsys, config_writes_allowed):
     monkeypatch.setattr(sys, 'argv', [
         'ghcloneall', '--init', '--org', 'gtimelog',
@@ -1443,6 +1466,7 @@ def test_main_reads_config_file(monkeypatch, capsys, config_writes_allowed):
         u'[ghcloneall]\n'
         u'github_user = mgedmin\n'
         u'github_org = gtimelog\n'
+        u'github_token = UNITTEST\n'
         u'gists = False\n'
         u'pattern = *.vim\n'
         u'include_forks = True\n'

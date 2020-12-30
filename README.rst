@@ -80,11 +80,13 @@ Other command-line options::
     $ ghcloneall --help
     usage: ghcloneall [-h] [--version] [-c CONCURRENCY] [-n] [-q] [-v]
                       [--start-from REPO] [--organization ORGANIZATION]
-                      [--user USER] [--gists] [--repositories] [--pattern PATTERN]
-                      [--include-forks] [--exclude-forks] [--include-archived]
-                      [--exclude-archived] [--include-private] [--exclude-private]
-                      [--include-disabled] [--exclude-disabled] [--init]
-                      [--http-cache DBNAME] [--no-http-cache]
+                      [--user USER] [--github-token GITHUB_TOKEN] [--gists]
+                      [--repositories] [--pattern PATTERN] [--include-forks]
+                      [--exclude-forks] [--include-archived] [--exclude-archived]
+                      [--include-private] [--exclude-private] [--include-disabled]
+                      [--exclude-disabled] [--init] [--http-cache DBNAME]
+                      [--no-http-cache]
+
 
     Clone/update all user/org repositories from GitHub.
 
@@ -101,6 +103,8 @@ Other command-line options::
       --organization ORGANIZATION
                             specify the GitHub organization
       --user USER           specify the GitHub user
+      --github-token GITHUB_TOKEN
+                            specify the GitHub token
       --gists               clone user's gists
       --repositories        clone user's or organisation's repositories (default)
       --pattern PATTERN     specify repository name glob pattern to filter
@@ -130,6 +134,8 @@ should look like this::
     # github_org = ZopeFoundation
     github_user = mgedmin
     pattern = *.vim
+    # Provide github token for authentication
+    # github_token = <my-github-token>
     # You can also uncomment and change these if you wish
     # gists = False
     # include_forks = False

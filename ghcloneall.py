@@ -83,7 +83,7 @@ def get_github_list(url, batch_size=100, progress_callback=None, session=None):
     while 'next' in links:
         if progress_callback:
             progress_callback(len(res))
-        more, links = get_json_and_links(links['next']['url'])
+        more, links = get_json_and_links(links['next']['url'], session)
         res += more
     return res
 
@@ -383,7 +383,8 @@ class Repo(object):
 
 class RepoWrangler(object):
 
-    def __init__(self, dry_run=False, verbose=0, progress=None, quiet=False):
+    def __init__(self, dry_run=False, verbose=0, progress=None, quiet=False,
+                 token=None):
         self.n_repos = 0
         self.n_updated = 0
         self.n_new = 0
@@ -394,13 +395,18 @@ class RepoWrangler(object):
         self.progress = progress if progress else Progress()
         self.lock = threading.Lock()
 
+        self.session = requests.Session()
+        if token:
+            self.session.auth = ('', token)
+
     def get_github_list(self, list_url, message):
         self.progress.status(message)
 
         def progress_callback(n):
             self.progress.status("{} ({})".format(message, n))
 
-        return get_github_list(list_url, progress_callback=progress_callback)
+        return get_github_list(list_url, progress_callback=progress_callback,
+                               session=self.session)
 
     def list_gists(self, user, pattern=None):
         list_url = 'https://api.github.com/users/{}/gists'.format(user)
@@ -778,6 +784,9 @@ def _main():
         '--user',
         help='specify the GitHub user')
     parser.add_argument(
+        '--github-token',
+        help='specify the GitHub token')
+    parser.add_argument(
         '--gists', action='store_true', default=None,
         help="clone user's gists")
     parser.add_argument(
@@ -834,6 +843,9 @@ def _main():
             args.user = config.get(CONFIG_SECTION, 'github_user')
         if config.has_option(CONFIG_SECTION, 'github_org'):
             args.organization = config.get(CONFIG_SECTION, 'github_org')
+    if not args.github_token:
+        if config.has_option(CONFIG_SECTION, 'github_token'):
+            args.github_token = config.get(CONFIG_SECTION, 'github_token')
     if not args.pattern:
         if config.has_option(CONFIG_SECTION, 'pattern'):
             args.pattern = config.get(CONFIG_SECTION, 'pattern')
@@ -874,6 +886,8 @@ def _main():
             config.set(CONFIG_SECTION, 'github_user', args.user)
         if args.organization:
             config.set(CONFIG_SECTION, 'github_org', args.organization)
+        if args.github_token:
+            config.set(CONFIG_SECTION, 'github_token', args.github_token)
         if args.pattern:
             config.set(CONFIG_SECTION, 'pattern', args.pattern)
         if args.gists is not None:
@@ -913,7 +927,8 @@ def _main():
 
     with Progress() as progress:
         wrangler = RepoWrangler(dry_run=args.dry_run, verbose=args.verbose,
-                                progress=progress, quiet=args.quiet)
+                                progress=progress, quiet=args.quiet,
+                                token=args.github_token)
         if args.gists:
             repos = wrangler.list_gists(
                 user=args.user,
