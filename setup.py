@@ -47,13 +47,10 @@ setup(
     py_modules=['ghcloneall'],
     install_requires=[
         'requests',
-        'requests_cache',
+        'requests_cache < 0.6; python_version=="2.7"',
+        'requests_cache; python_version!="2.7"',
+        'futures; python_version=="2.7"',
     ],
-    extras_require={
-        ':python_version=="2.7"': [
-            'futures',
-        ],
-    },
     entry_points={
         'console_scripts': [
             'ghcloneall = ghcloneall:main',
