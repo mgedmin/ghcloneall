@@ -29,7 +29,7 @@ import requests_cache
 __author__ = 'Marius Gedminas <marius@gedmin.as>'
 __licence__ = 'MIT'
 __url__ = 'https://github.com/mgedmin/ghcloneall'
-__version__ = '1.9.3.dev0'
+__version__ = '1.10.0'
 
 
 CONFIG_FILE = '.ghcloneallrc'

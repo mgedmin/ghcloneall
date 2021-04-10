@@ -2,7 +2,7 @@ Changelog
 =========
 
 
-1.10.0 (unreleased)
+1.10.0 (2021-04-10)
 -------------------
 
 - Allow authentication with GitHub token.
