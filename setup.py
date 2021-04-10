@@ -28,6 +28,7 @@ setup(
     url=metadata['__url__'],
     description='Clone/update all user/organization GitHub repositories',
     long_description=long_description,
+    long_description_content_type='text/x-rst',
     keywords='github git clone automation',
     classifiers=[
         "Development Status :: 4 - Beta",
