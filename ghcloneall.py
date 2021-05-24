@@ -347,11 +347,12 @@ class Progress(object):
 
 
 class Repo(object):
-    def __init__(self, name, clone_url, alt_urls=()):
+    def __init__(self, name, clone_url, alt_urls=(), default_branch='master'):
         self.name = name
         self.clone_url = clone_url
         self.urls = {clone_url}
         self.urls.update(alt_urls)
+        self.default_branch = default_branch
 
     def __repr__(self):
         return 'Repo({!r}, {!r}, {{{}}})'.format(
@@ -374,7 +375,8 @@ class Repo(object):
         # use repo['git_url'] for anonymous checkouts, but they're slower
         # (at least as long as you use SSH connection multiplexing)
         clone_url = repo['ssh_url']
-        return cls(repo['name'], clone_url, (repo['clone_url'],))
+        return cls(repo['name'], clone_url, (repo['clone_url'],),
+                   repo['default_branch'])
 
     @classmethod
     def from_gist(cls, gist):
@@ -618,8 +620,9 @@ class RepoTask(object):
             self.progress_item.update(' (local commits)')
             self.dirty = True
         branch = self.get_current_branch(dir)
-        if branch != 'master':
-            self.progress_item.update(' (not on master)')
+        if branch != repo.default_branch:
+            self.progress_item.update(' (not on {})'.format(
+                repo.default_branch))
             if self.options.verbose >= 2:
                 self.progress_item.extra_info('branch: {}'.format(branch))
             self.dirty = True

@@ -63,8 +63,8 @@ What it does:
   - unknown files in the tree (in --verbose mode only)
   - staged but not committed changes
   - uncommitted (and unstaged changes)
-  - non-master branch checked out
-  - committed changes that haven't been pushed to master
+  - non-default branch checked out
+  - committed changes that haven't been pushed to default branch
   - remote URL pointing to an unexpected location (in --verbose mode only)
 
 You can ask it to not change any files on disk and just look for pending
