@@ -747,6 +747,7 @@ def repo(name, **kwargs):
         'disabled': False,
         'clone_url': 'https://github.com/test_user/%s' % name,
         'ssh_url': 'git@github.com:test_user/%s.git' % name,
+        'default_branch': 'master',
     }
     repo.update(kwargs)
     return repo
@@ -928,6 +929,26 @@ def test_RepoTask_run_updates(monkeypatch, ):
     assert wrangler.n_dirty == 0
 
 
+def test_RepoTask_run_updates_main(monkeypatch, ):
+    monkeypatch.setattr(os.path, 'exists', lambda dir: True)
+    buf = StringIO()
+    progress = ghcloneall.Progress(stream=buf)
+    wrangler = ghcloneall.RepoWrangler(progress=progress)
+    task = wrangler.repo_task(Repo('xyzzy', default_branch='main'))
+    responses = ['aaaaa', 'bbbbb']
+    task.get_current_commit = lambda dir: responses.pop(0)
+    task.get_current_branch = lambda dir: 'main'
+    task.run()
+    assert show_ansi_result(buf.getvalue()) == (
+        '+ xyzzy (updated)\n'
+        "[####################] 1/0"
+    )
+    assert wrangler.n_repos == 1
+    assert wrangler.n_new == 0
+    assert wrangler.n_updated == 1
+    assert wrangler.n_dirty == 0
+
+
 def raise_exception(*args):
     raise Exception("oh no")
 
@@ -1001,6 +1022,31 @@ def test_RepoTask_verify():
     assert show_ansi_result(buf.getvalue(), width=100) == (
         '+ xyzzy (local changes) (staged changes) (local commits)'
         ' (not on master) (wrong remote url)\n'
+        '    branch: boo\n'
+        '    remote: root@github.com:test_user/xyzzy.git\n'
+        '    expected: git@github.com:test_user/xyzzy.git\n'
+        '    alternatively: https://github.com/test_user/xyzzy\n'
+        "[####################] 1/0"
+    )
+    assert task.dirty
+
+
+def test_RepoTask_verify_main():
+    buf = StringIO()
+    progress = ghcloneall.Progress(stream=buf)
+    wrangler = ghcloneall.RepoWrangler(progress=progress, verbose=2)
+    task = wrangler.repo_task(Repo('xyzzy', default_branch='main'))
+    task.get_current_branch = lambda dir: 'boo'
+    task.get_remote_url = lambda dir: 'root@github.com:test_user/xyzzy'
+    task.has_local_changes = lambda dir: True
+    task.has_staged_changes = lambda dir: True
+    task.has_local_commits = lambda dir: True
+    task.verify(task.repo, 'xyzzy')
+    # NB: we can see that the output doesn't work right when the terminal
+    # width is 80 instead of 100, but I'm not up to fixing it today
+    assert show_ansi_result(buf.getvalue(), width=100) == (
+        '+ xyzzy (local changes) (staged changes) (local commits)'
+        ' (not on main) (wrong remote url)\n'
         '    branch: boo\n'
         '    remote: root@github.com:test_user/xyzzy.git\n'
         '    expected: git@github.com:test_user/xyzzy.git\n'
