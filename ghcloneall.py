@@ -832,7 +832,8 @@ def _main():
         help='create a {} from command-line arguments'.format(CONFIG_FILE))
     parser.add_argument(
         '--http-cache', default='.httpcache', metavar='DBNAME',
-        # .sqlite will be appended automatically
+        # .sqlite will be appended automatically by requests-cache < 0.6
+        # requests-cache >= 0.6 adds .sqlite only when the name has no .
         help='cache HTTP requests on disk in an sqlite database for 5 minutes'
              ' (default: .httpcache)')
     parser.add_argument(
