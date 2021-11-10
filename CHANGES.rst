@@ -5,7 +5,7 @@ Changelog
 1.10.2 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Add support for Python 3.10.
 
 
 1.10.1 (2021-05-26)
