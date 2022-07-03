@@ -425,17 +425,6 @@ class RepoWrangler(object):
     def list_repos(self, user=None, organization=None, pattern=None,
                    include_archived=False, include_forks=False,
                    include_private=True, include_disabled=True):
-        if organization and not user:
-            owner = organization
-            list_url = 'https://api.github.com/orgs/{}/repos'.format(owner)
-        elif user and not organization:
-            owner = user
-            list_url = 'https://api.github.com/users/{}/repos'.format(owner)
-        else:
-            raise ValueError('specify either user or organization, not both')
-
-        message = "Fetching list of {}'s repositories from GitHub...".format(
-            owner)
 
         # User repositories default to sort=full_name, org repositories default
         # to sort=created.  In theory we don't care because we will sort the
@@ -444,7 +433,29 @@ class RepoWrangler(object):
         # happen before pagination, i.e. on the server side, as I want to
         # process the repositories alphabetically (both for aesthetic reasons,
         # and in order for --start-from to be useful).
-        list_url += '?sort=full_name'
+
+        if organization and not user:
+            owner = organization
+            list_url = ('https://api.github.com/orgs/{}/repos'
+                        '?sort=full_name').format(
+                            owner)
+        elif user and not organization:
+            owner = user
+            if include_private:
+                # users/$name/repos does not include private repos, so
+                # we have to query for the repos owned by the current
+                # user instead.  This only works if the current token
+                # is associated with that user.
+                list_url = ('https://api.github.com/user/repos'
+                            '?affiliation=owner&sort=full_name')
+            else:
+                list_url = ('https://api.github.com/users/{}/repos'
+                            '?sort=full_name').format(owner)
+        else:
+            raise ValueError('specify either user or organization, not both')
+
+        message = "Fetching list of {}'s repositories from GitHub...".format(
+            owner)
 
         repos = self.get_github_list(list_url, message)
         if not include_archived:

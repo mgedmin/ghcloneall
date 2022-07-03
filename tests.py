@@ -101,10 +101,15 @@ def mock_config_filename(monkeypatch):
 
 
 def make_page_url(url, page, extra):
+    # Some of the incoming test URLs already have query args. If so,
+    # append the page arguments using the appropriate separator.
+    sep = '?'
+    if '?' in url:
+        sep = '&'
     if page == 1:
-        return '%s?%sper_page=100' % (url, extra)
+        return '%s%s%sper_page=100' % (url, sep, extra)
     else:
-        return '%s?%spage=%d&per_page=100' % (url, extra, page)
+        return '%s%s%spage=%d&per_page=100' % (url, sep, extra, page)
 
 
 def mock_multi_page_api_responses(url, pages, extra='sort=full_name&'):
@@ -759,7 +764,7 @@ def Repo(name, **kwargs):
 
 def test_RepoWrangler_list_repos_for_user(mock_requests_get):
     mock_requests_get.update(mock_multi_page_api_responses(
-        url='https://api.github.com/users/test_user/repos',
+        url='https://api.github.com/user/repos?affiliation=owner',
         pages=[
             [
                 repo('xyzzy'),
@@ -793,7 +798,7 @@ def test_RepoWrangler_list_repos_for_org(mock_requests_get):
 
 def test_RepoWrangler_list_repos_filter_by_name(mock_requests_get):
     mock_requests_get.update(mock_multi_page_api_responses(
-        url='https://api.github.com/users/test_user/repos',
+        url='https://api.github.com/user/repos?affiliation=owner',
         pages=[
             [
                 repo('xyzzy'),
@@ -810,7 +815,7 @@ def test_RepoWrangler_list_repos_filter_by_name(mock_requests_get):
 
 def test_RepoWrangler_list_repos_filter_by_status(mock_requests_get):
     mock_requests_get.update(mock_multi_page_api_responses(
-        url='https://api.github.com/users/test_user/repos',
+        url='https://api.github.com/user/repos?affiliation=owner',
         pages=[
             [
                 repo('a', archived=True),
@@ -847,15 +852,56 @@ def test_RepoWrangler_list_repos_filter_by_status(mock_requests_get):
         Repo('c'),
         Repo('p', private=True),
     ]
+
+
+def test_RepoWrangler_list_repos_no_private(mock_requests_get):
+    mock_requests_get.update(mock_multi_page_api_responses(
+        url='https://api.github.com/users/test_user/repos',
+        pages=[
+            [
+                repo('a', archived=True),
+                repo('f', fork=True),
+                repo('p', private=True),
+                repo('d', disabled=True),
+                repo('c'),
+            ],
+        ],
+    ))
+    wrangler = ghcloneall.RepoWrangler()
     result = wrangler.list_repos(user='test_user', include_private=False)
     assert result == [
         Repo('c'),
+        Repo('d', disabled=True),
+    ]
+    result = wrangler.list_repos(user='test_user', include_private=False,
+                                 include_archived=True)
+    assert result == [
+        Repo('a', archived=True),
+        Repo('c'),
+        Repo('d', disabled=True),
+    ]
+    result = wrangler.list_repos(user='test_user', include_private=False,
+                                 include_forks=True)
+    assert result == [
+        Repo('c'),
+        Repo('d', disabled=True),
+        Repo('f', fork=True),
+    ]
+    result = wrangler.list_repos(user='test_user', include_private=False,
+                                 include_disabled=False)
+    assert result == [
+        Repo('c'),
+    ]
+    result = wrangler.list_repos(user='test_user', include_private=False)
+    assert result == [
+        Repo('c'),
+        Repo('d', disabled=True),
     ]
 
 
 def test_RepoWrangler_list_repos_progress_bar(mock_requests_get):
     mock_requests_get.update(mock_multi_page_api_responses(
-        url='https://api.github.com/users/test_user/repos',
+        url='https://api.github.com/user/repos?affiliation=owner',
         pages=[
             [
                 repo('xyzzy'),
@@ -1335,6 +1381,19 @@ def test_main_run_error_handling(monkeypatch, capsys):
     with pytest.raises(SystemExit) as ctx:
         ghcloneall.main()
     assert str(ctx.value) == (
+        'Failed to fetch https://api.github.com/user/repos?affiliation=owner'
+        '&sort=full_name&per_page=100:\n'
+        'not found'
+    )
+
+
+def test_main_run_error_handling_no_private(monkeypatch, capsys):
+    monkeypatch.setattr(sys, 'argv', [
+        'ghcloneall', '--user', 'mgedmin', '--exclude-private',
+    ])
+    with pytest.raises(SystemExit) as ctx:
+        ghcloneall.main()
+    assert str(ctx.value) == (
         'Failed to fetch https://api.github.com/users/mgedmin/repos'
         '?sort=full_name&per_page=100:\n'
         'not found'
@@ -1346,7 +1405,7 @@ def test_main_run(monkeypatch, mock_requests_get, capsys):
         'ghcloneall', '--user', 'mgedmin', '--concurrency=1',
     ])
     mock_requests_get.update(mock_multi_page_api_responses(
-        url='https://api.github.com/users/mgedmin/repos',
+        url='https://api.github.com/user/repos?affiliation=owner',
         pages=[
             [
                 repo('ghcloneall'),
@@ -1369,7 +1428,7 @@ def test_main_run_start_from(monkeypatch, mock_requests_get, capsys):
         'ghcloneall', '--user', 'mgedmin', '--start-from', 'x',
     ])
     mock_requests_get.update(mock_multi_page_api_responses(
-        url='https://api.github.com/users/mgedmin/repos',
+        url='https://api.github.com/user/repos?affiliation=owner',
         pages=[
             [
                 repo('ghcloneall'),
