@@ -7,6 +7,8 @@ Changelog
 
 - Add support for Python 3.10.
 - Drop support for Python 3.6.
+- Fix ``ghcloneall --user ... --github-token ... --include-private`` not
+  including any private repositories (GH: #16).
 
 
 1.10.1 (2021-05-26)

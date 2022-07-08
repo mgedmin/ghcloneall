@@ -398,6 +398,7 @@ class RepoWrangler(object):
         self.lock = threading.Lock()
 
         self.session = requests.Session()
+        self.has_auth_token = bool(token)
         if token:
             self.session.auth = ('', token)
 
@@ -441,7 +442,7 @@ class RepoWrangler(object):
                             owner)
         elif user and not organization:
             owner = user
-            if include_private:
+            if include_private and self.has_auth_token:
                 # users/$name/repos does not include private repos, so
                 # we have to query for the repos owned by the current
                 # user instead.  This only works if the current token
