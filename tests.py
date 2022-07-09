@@ -1446,6 +1446,31 @@ def test_main_run_with_token(monkeypatch, mock_requests_get, capsys):
     )
 
 
+def test_main_run_private_without_token(monkeypatch, mock_requests_get,
+                                        capsys):
+    monkeypatch.setattr(sys, 'argv', [
+        'ghcloneall', '--user', 'mgedmin', '--concurrency=1',
+        '--include-private',
+    ])
+    mock_requests_get.update(mock_multi_page_api_responses(
+        url='https://api.github.com/users/mgedmin/repos',
+        pages=[
+            [
+                repo('ghcloneall'),
+                repo('experiment', archived=True),
+                repo('typo-fix', fork=True),
+                repo('xyzzy', private=True, disabled=True),
+            ],
+        ],
+    ))
+    ghcloneall.main()
+    assert show_ansi_result(capsys.readouterr().out) == (
+        'Warning: Listing private repositories requires a GitHub token\n'
+        '+ ghcloneall (new)\n'
+        '1 repositories: 0 updated, 1 new, 0 dirty.'
+    )
+
+
 def test_main_run_start_from(monkeypatch, mock_requests_get, capsys):
     monkeypatch.setattr(sys, 'argv', [
         'ghcloneall', '--user', 'mgedmin', '--start-from', 'x',
