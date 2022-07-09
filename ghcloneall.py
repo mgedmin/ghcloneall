@@ -824,7 +824,8 @@ def _main():
         help='exclude archived repositories (default)')
     parser.add_argument(
         '--include-private', action='store_true', default=None,
-        help='include private repositories (default)')
+        help=('include private repositories '
+              '(default when a github token is provided)'))
     parser.add_argument(
         '--exclude-private', action='store_false', dest='include_private',
         help='exclude private repositories')
