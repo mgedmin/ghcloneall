@@ -931,7 +931,7 @@ def _main():
         return
 
     if args.include_private is None:
-        args.include_private = True
+        args.include_private = bool(args.github_token)
     if args.include_disabled is None:
         args.include_disabled = True
 

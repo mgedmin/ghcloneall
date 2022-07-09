@@ -1418,6 +1418,29 @@ def test_main_run(monkeypatch, mock_requests_get, capsys):
     ghcloneall.main()
     assert show_ansi_result(capsys.readouterr().out) == (
         '+ ghcloneall (new)\n'
+        '1 repositories: 0 updated, 1 new, 0 dirty.'
+    )
+
+
+def test_main_run_with_token(monkeypatch, mock_requests_get, capsys):
+    monkeypatch.setattr(sys, 'argv', [
+        'ghcloneall', '--user', 'mgedmin', '--concurrency=1',
+        '--github-token', 'fake-token',
+    ])
+    mock_requests_get.update(mock_multi_page_api_responses(
+        url='https://api.github.com/user/repos?affiliation=owner',
+        pages=[
+            [
+                repo('ghcloneall'),
+                repo('experiment', archived=True),
+                repo('typo-fix', fork=True),
+                repo('xyzzy', private=True, disabled=True),
+            ],
+        ],
+    ))
+    ghcloneall.main()
+    assert show_ansi_result(capsys.readouterr().out) == (
+        '+ ghcloneall (new)\n'
         '+ xyzzy (new)\n'
         '2 repositories: 0 updated, 2 new, 0 dirty.'
     )
