@@ -113,7 +113,7 @@ Other command-line options::
                             (default)
       --include-archived    include archived repositories
       --exclude-archived    exclude archived repositories (default)
-      --include-private     include private repositories, requires a github token (default)
+      --include-private     include private repositories (default when a github token is provided)
       --exclude-private     exclude private repositories
       --include-disabled    include disabled repositories (default)
       --exclude-disabled    exclude disabled repositories
