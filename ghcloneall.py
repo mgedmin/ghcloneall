@@ -931,7 +931,8 @@ def _main():
         return
 
     if args.include_private and not args.github_token:
-        print('Warning: Listing private repositories requires a GitHub token')
+        print('Warning: Listing private repositories requires a GitHub token',
+              file=sys.stderr)
         args.include_private = False
     if args.include_private is None:
         args.include_private = bool(args.github_token)

@@ -1464,10 +1464,13 @@ def test_main_run_private_without_token(monkeypatch, mock_requests_get,
         ],
     ))
     ghcloneall.main()
-    assert show_ansi_result(capsys.readouterr().out) == (
-        'Warning: Listing private repositories requires a GitHub token\n'
+    captured = capsys.readouterr()
+    assert show_ansi_result(captured.out) == (
         '+ ghcloneall (new)\n'
         '1 repositories: 0 updated, 1 new, 0 dirty.'
+    )
+    assert captured.err == (
+        'Warning: Listing private repositories requires a GitHub token\n'
     )
 
 
