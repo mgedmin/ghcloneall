@@ -16,17 +16,23 @@ jobs:
   build:
     name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.optional }}
 
     strategy:
+      fail-fast: false
       matrix:
+        optional: [false]
         python-version:
           - "2.7"
           - "3.7"
           - "3.8"
           - "3.9"
           - "3.10"
-          - "pypy2"
-          - "pypy-3.7"
+        include:
+          - python-version: "pypy2"
+            optional: true
+          - python-version: "pypy-3.7"
+            optional: true
 
     steps:
       - name: Git clone
@@ -69,8 +75,10 @@ jobs:
   lint:
     name: ${{ matrix.toxenv }}
     runs-on: ubuntu-latest
+    continue-on-error: true
 
     strategy:
+      fail-fast: false
       matrix:
         toxenv:
           - flake8
