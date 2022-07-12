@@ -824,7 +824,8 @@ def _main():
         help='exclude archived repositories (default)')
     parser.add_argument(
         '--include-private', action='store_true', default=None,
-        help='include private repositories (default)')
+        help=('include private repositories '
+              '(default when a github token is provided)'))
     parser.add_argument(
         '--exclude-private', action='store_false', dest='include_private',
         help='exclude private repositories')
@@ -929,8 +930,12 @@ def _main():
                     CONFIG_FILE))
         return
 
+    if args.include_private and not args.github_token:
+        print('Warning: Listing private repositories requires a GitHub token',
+              file=sys.stderr)
+        args.include_private = False
     if args.include_private is None:
-        args.include_private = True
+        args.include_private = bool(args.github_token)
     if args.include_disabled is None:
         args.include_disabled = True
 

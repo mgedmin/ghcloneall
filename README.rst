@@ -113,7 +113,7 @@ Other command-line options::
                             (default)
       --include-archived    include archived repositories
       --exclude-archived    exclude archived repositories (default)
-      --include-private     include private repositories (default)
+      --include-private     include private repositories (default when a github token is provided)
       --exclude-private     exclude private repositories
       --include-disabled    include disabled repositories (default)
       --exclude-disabled    exclude disabled repositories
@@ -140,6 +140,7 @@ should look like this::
     # gists = False
     # include_forks = False
     # include_archived = False
+    # Listing private repositories requires a valid github_token
     # include_private = True
     # include_disabled = True
 
