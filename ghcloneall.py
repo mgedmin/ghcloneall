@@ -423,6 +423,15 @@ class RepoWrangler(object):
         # - exclude private gists (if g['public'])
         return sorted(map(Repo.from_gist, gists), key=attrgetter('name'))
 
+    def _verify_user_token(self, user):
+        # Verify that the user and token match
+        user_data, _ = get_json_and_links('https://api.github.com/user',
+                                          session=self.session)
+        if user_data.get('login') == user:
+            return
+        raise Error('The github_user specified ({}) '
+                    'does not match the token used.'.format(user))
+
     def list_repos(self, user=None, organization=None, pattern=None,
                    include_archived=False, include_forks=False,
                    include_private=True, include_disabled=True):
@@ -443,6 +452,7 @@ class RepoWrangler(object):
         elif user and not organization:
             owner = user
             if include_private and self.has_auth_token:
+                self._verify_user_token(user)
                 # users/$name/repos does not include private repos, so
                 # we have to query for the repos owned by the current
                 # user instead.  This only works if the current token
