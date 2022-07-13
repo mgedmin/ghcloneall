@@ -75,6 +75,15 @@ check faster!
 Synopsis
 --------
 
+.. [[[cog
+..   import cog, subprocess, textwrap
+..   helptext = subprocess.run(['ghcloneall', '--help'],
+..                             capture_output=True, text=True).stdout
+..   cog.outl('\nOther command-line options::\n')
+..   cog.outl('    $ ghcloneall --help')
+..   cog.outl(textwrap.indent(helptext, '    '))
+.. ]]]
+
 Other command-line options::
 
     $ ghcloneall --help
@@ -87,10 +96,9 @@ Other command-line options::
                       [--exclude-disabled] [--init] [--http-cache DBNAME]
                       [--no-http-cache]
 
-
     Clone/update all user/org repositories from GitHub.
 
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       --version             show program's version number and exit
       -c CONCURRENCY, --concurrency CONCURRENCY
@@ -113,7 +121,8 @@ Other command-line options::
                             (default)
       --include-archived    include archived repositories
       --exclude-archived    exclude archived repositories (default)
-      --include-private     include private repositories (default when a github token is provided)
+      --include-private     include private repositories (default when a github
+                            token is provided)
       --exclude-private     exclude private repositories
       --include-disabled    include disabled repositories (default)
       --exclude-disabled    exclude disabled repositories
@@ -121,6 +130,8 @@ Other command-line options::
       --http-cache DBNAME   cache HTTP requests on disk in an sqlite database for
                             5 minutes (default: .httpcache)
       --no-http-cache       disable HTTP disk caching
+
+.. [[[end]]]
 
 
 Configuration file
