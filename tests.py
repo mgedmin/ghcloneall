@@ -37,6 +37,8 @@ class MockResponse:
 
 class MockRequestGet:
 
+    user_endpoint = 'https://api.github.com/user'
+
     def __init__(self):
         self.responses = {}
         self.not_found = MockResponse(
@@ -45,6 +47,15 @@ class MockRequestGet:
 
     def update(self, responses):
         self.responses.update(responses)
+
+    def set_user(self, user):
+        if user is None:
+            if self.user_endpoint in self.responses:
+                del self.responses[self.user_endpoint]
+        else:
+            self.responses[self.user_endpoint] = MockResponse(
+                json={'login': user},
+            )
 
     def __call__(self, url, headers=None):
         return self.responses.get(url, self.not_found)
@@ -55,6 +66,7 @@ def mock_requests_get(monkeypatch):
     mock_get = MockRequestGet()
     monkeypatch.setattr(requests, 'get', mock_get)
     monkeypatch.setattr(requests.Session, 'get', mock_get)
+    mock_get.set_user(None)
     return mock_get
 
 
@@ -1374,10 +1386,12 @@ def test_main_no_org_gists(monkeypatch, capsys):
     )
 
 
-def test_main_run_error_handling_with_private_token(monkeypatch, capsys):
+def test_main_run_error_handling_with_private_token(
+        monkeypatch, mock_requests_get, capsys):
     monkeypatch.setattr(sys, 'argv', [
         'ghcloneall', '--user', 'mgedmin', '--github-token', 'xyzzy',
     ])
+    mock_requests_get.set_user('mgedmin')
     with pytest.raises(SystemExit) as ctx:
         ghcloneall.main()
     assert str(ctx.value) == (
@@ -1427,6 +1441,7 @@ def test_main_run_with_token(monkeypatch, mock_requests_get, capsys):
         'ghcloneall', '--user', 'mgedmin', '--concurrency=1',
         '--github-token', 'fake-token',
     ])
+    mock_requests_get.set_user('mgedmin')
     mock_requests_get.update(mock_multi_page_api_responses(
         url='https://api.github.com/user/repos?affiliation=owner',
         pages=[
@@ -1443,6 +1458,21 @@ def test_main_run_with_token(monkeypatch, mock_requests_get, capsys):
         '+ ghcloneall (new)\n'
         '+ xyzzy (new)\n'
         '2 repositories: 0 updated, 2 new, 0 dirty.'
+    )
+
+
+def test_main_run_with_mismatched_token(monkeypatch, mock_requests_get,
+                                        capsys):
+    monkeypatch.setattr(sys, 'argv', [
+        'ghcloneall', '--user', 'test_user', '--concurrency=1',
+        '--github-token', 'fake-token',
+    ])
+    mock_requests_get.set_user('some-other-user')
+    with pytest.raises(SystemExit) as ctx:
+        ghcloneall.main()
+    assert str(ctx.value) == (
+        'The github_user specified (test_user) '
+        'does not match the token used.'
     )
 
 
