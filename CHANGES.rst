@@ -5,7 +5,7 @@ Changelog
 1.10.2 (unreleased)
 -------------------
 
-- Add support for Python 3.10.
+- Add support for Python 3.10 and 3.11.
 - Drop support for Python 3.6.
 - Fix ``ghcloneall --user ... --github-token ... --include-private`` not
   including any private repositories (GH: #16).
