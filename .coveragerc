@@ -1,7 +1,5 @@
 [run]
 source = ghcloneall
-plugins =
-    coverage_python_version
 
 [report]
 exclude_lines =
