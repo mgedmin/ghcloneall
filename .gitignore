@@ -5,3 +5,4 @@ ghcloneall.egg-info/
 build/
 dist/
 tmp/
+.cache/
