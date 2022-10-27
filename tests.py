@@ -2,12 +2,7 @@ import os
 import re
 import subprocess
 import sys
-
-
-try:
-    from cStringIO import StringIO
-except ImportError:  # pragma: PY3
-    from io import StringIO
+from io import StringIO
 
 import pytest
 import requests

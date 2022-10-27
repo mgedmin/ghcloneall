@@ -3,8 +3,6 @@
 Clone all Git repositories for a GitHub user or organisation.
 """
 
-from __future__ import print_function
-
 import argparse
 import fnmatch
 import os
@@ -12,15 +10,8 @@ import subprocess
 import sys
 import threading
 from concurrent import futures
+from configparser import ConfigParser
 from operator import attrgetter
-
-
-try:
-    # Python 2
-    from ConfigParser import SafeConfigParser as ConfigParser
-except ImportError:  # pragma: PY3
-    # Python 3
-    from configparser import ConfigParser
 
 import requests
 import requests_cache
@@ -29,7 +20,7 @@ import requests_cache
 __author__ = 'Marius Gedminas <marius@gedmin.as>'
 __licence__ = 'MIT'
 __url__ = 'https://github.com/mgedmin/ghcloneall'
-__version__ = '1.11.1.dev0'
+__version__ = '1.12.0.dev0'
 
 
 CONFIG_FILE = '.ghcloneallrc'
