@@ -76,7 +76,8 @@ Synopsis
 --------
 
 .. [[[cog
-..   import cog, subprocess, textwrap
+..   import cog, subprocess, textwrap, os
+..   os.environ['COLUMNS'] = '80'  # consistent line wrapping
 ..   helptext = subprocess.run(['ghcloneall', '--help'],
 ..                             capture_output=True, text=True).stdout
 ..   cog.outl('\nOther command-line options::\n')
