@@ -5,7 +5,8 @@ Changelog
 1.12.0 (unreleased)
 -------------------
 
-- Drop support for Python 2.7
+- Add support for Python 3.12.
+- Drop support for Python 2.7.
 
 
 1.11.0 (2022-10-27)
