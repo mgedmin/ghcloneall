@@ -29,8 +29,9 @@ jobs:
           - "3.10"
           - "3.11"
           - "3.12"
+          - "3.13"
         include:
-          - python-version: "pypy-3.7"
+          - python-version: "pypy3.10"
             optional: true
 
     steps:
