@@ -1,7 +1,7 @@
 ghcloneall
 ==========
 
-.. image:: https://github.com/mgedmin/ghcloneall/workflows/build/badge.svg?branch=master
+.. image:: https://github.com/mgedmin/ghcloneall/actions/workflows/build.yml/badge.svg?branch=master
     :target: https://github.com/mgedmin/ghcloneall/actions
 
 .. image:: https://ci.appveyor.com/api/projects/status/github/mgedmin/ghcloneall?branch=master&svg=true
