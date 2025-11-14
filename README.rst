@@ -4,10 +4,6 @@ ghcloneall
 .. image:: https://github.com/mgedmin/ghcloneall/actions/workflows/build.yml/badge.svg?branch=master
     :target: https://github.com/mgedmin/ghcloneall/actions
 
-.. image:: https://ci.appveyor.com/api/projects/status/github/mgedmin/ghcloneall?branch=master&svg=true
-    :target: https://ci.appveyor.com/project/mgedmin/ghcloneall
-
-
 It's a script to clone/update all repos for a user/organization from GitHub.
 
 Target audience: maintainers of large collections of projects (for example,
@@ -17,7 +13,7 @@ ZopeFoundation members).
 Usage examples
 --------------
 
-First ``pip install ghcloneall``.
+First ``pipx install ghcloneall`` or ``uv tool install ghcloneall``.
 
 Clone all mgedmin's vim plugins::
 
@@ -163,7 +159,7 @@ You can create one with ``ghcloneall --init --{user,org} X [--pattern Y]
 Tips
 ----
 
-For best results configure SSH persistence to speed up git pulls -- in your
+For best results configure SSH persistence to speed up git pulls in your
 ``~/.ssh/config``::
 
     Host github.com
